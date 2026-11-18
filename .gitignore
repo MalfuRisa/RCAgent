@@ -233,3 +233,16 @@ local_testing/datasets/
 local_testing/live/
 local_testing/var/
 *.zip
+
+# Local development documentation and historical experiment infrastructure
+/docs/
+/doc/
+/assets/
+/evaluation/
+/experiments_runner/
+/registry/
+/automated_experiment.py
+/launch_experiment.py
+/poetry.toml
+/local_testing/systemd/
+/local_testing/*.md

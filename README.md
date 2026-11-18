@@ -29,8 +29,8 @@ poetry run python -m unittest local_testing.tests.test_prd44_fetch_handoff local
 
 Runs save `events.jsonl`, `sources.json`, raw tool responses and `report.md`. Set `RCAGENT_NATIVE_TRACE_REQUESTS=true` to save public model request snapshots. Program checks record references, scopes and execution receipts. Evaluate business conclusions against the actual evidence.
 
-Local secrets, generated data and migration backups are excluded by `.gitignore`. Historical development notes are in `docs/historical-development-notes.md`. Historical experiment scripts require their own datasets and external services. Optional `legacy_stdio` replay requires an explicitly installed external server at `RCAGENT_LEGACY_MCP_SERVER`.
+Local secrets, generated data and migration backups are excluded by `.gitignore`. Optional `legacy_stdio` replay requires an explicitly installed external server at `RCAGENT_LEGACY_MCP_SERVER`.
 
 ## Provenance
 
-RCAgent evolved from SRE-agent. [Original attribution and citation metadata](docs/upstream/README.md) are retained. This repository uses an independent Git history. Installation and default product execution use this repository and configured MCP endpoints.
+RCAgent evolved from SRE-agent. [Original attribution and citation metadata](NOTICE.md) are retained. This repository uses an independent Git history. Installation and default product execution use this repository and configured MCP endpoints.
