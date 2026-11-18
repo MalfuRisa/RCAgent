@@ -1,0 +1,941 @@
+{
+ "description": "One real-or-documented response per Gateway tool, used to pin the fixed field projections. Archived samples come from the 2026-10-12 version-88 workspace and the 2026-10-13 live IAM run; tools without a successful archived sample use the repo fixture shape and say so.",
+ "samples": {
+  "search_k8s_targets": {
+   "arguments": {
+    "cluster": "rd2",
+    "query": "iam-server-86cb7cd948-l24zd",
+    "kind": "pod",
+    "limit": 100,
+    "namespace": "kylin-insights"
+   },
+   "observations": {
+    "candidates": [
+     {
+      "cluster": "rd2",
+      "id": 147,
+      "kind": "pod",
+      "match": "exact",
+      "match_field": "name",
+      "name": "iam-server-86cb7cd948-l24zd",
+      "namespace": "kylin-insights",
+      "uid": "1f13370a-5c50-4f28-959f-83fa4f1a9a62"
+     }
+    ],
+    "candidates_by_kind": {
+     "pod": 1
+    },
+    "cluster_filter": "rd2",
+    "data_source": "server_inventory",
+    "freshness": "unknown",
+    "kind": "pod",
+    "namespace_filter": "kylin-insights",
+    "query": "iam-server-86cb7cd948-l24zd",
+    "scanned": {
+     "clusters": 2,
+     "namespaces": 5,
+     "pods": 1,
+     "services": 0
+    },
+    "status": "ok",
+    "truncated": false,
+    "warnings": []
+   },
+   "sample_origin": "D:/Business/Agents/RCAgent/test-results/20261012-k8s-redeploy (workspace version 88 / live-iam)"
+  },
+  "resolve_pod": {
+   "arguments": {
+    "cluster": "rd2",
+    "namespace": "kylin-insights",
+    "pod": "iam-server-86cb7cd948-l24zd"
+   },
+   "observations": {
+    "ambiguous": false,
+    "meta": {
+     "data_freshness": "unknown",
+     "data_gaps": [],
+     "query_time": "2026-10-12T15:27:29+08:00",
+     "time_range": {
+      "end_time": "2026-10-12T15:27:29+08:00",
+      "start_time": "2026-10-12T15:12:29+08:00"
+     },
+     "truncated": false
+    },
+    "pods": [
+     {
+      "cluster": "rd2",
+      "containers": [
+       {
+        "container_id": "ccb362f01b29081f4bf50705374db76ff2a8cb3fe9c327ccaf76b4cdc2a81d4a",
+        "image": "",
+        "name": ""
+       }
+      ],
+      "created_at": "2026-09-24T10:11:05+08:00",
+      "ips": [
+       "10.244.34.202",
+       "fe80::8cc4:5aff:fe66:6dad"
+      ],
+      "labels": {
+       "app.kubernetes.io/name": "iam-server",
+       "pod-template-hash": "86cb7cd948"
+      },
+      "name": "iam-server-86cb7cd948-l24zd",
+      "namespace": "kylin-insights",
+      "node": "k8s-10-44-56-108",
+      "pod_uid": "1f13370a-5c50-4f28-959f-83fa4f1a9a62",
+      "services": [
+       {
+        "cluster_ip": "10.103.210.141",
+        "name": "iam-server",
+        "selector": "{\"app.kubernetes.io/name\":\"iam-server\"}",
+        "uid": "1777fee9-e2c1-4ad4-9ca5-cc7648ae8e3c"
+       }
+      ],
+      "workload": {
+       "kind": "Deployment",
+       "name": "iam-server",
+       "uid": "661c4fb4-eec5-4efb-8623-35c958bd6a54"
+      }
+     }
+    ]
+   },
+   "sample_origin": "D:/Business/Agents/RCAgent/test-results/20261012-k8s-redeploy (workspace version 88 / live-iam)"
+  },
+  "get_pod_runtime_status": {
+   "arguments": {
+    "pod_uid": "1f13370a-5c50-4f28-959f-83fa4f1a9a62",
+    "cluster": "rd2"
+   },
+   "observations": {
+    "meta": {
+     "data_freshness": "unknown",
+     "data_gaps": [
+      {
+       "impact": "phase 来自 Controller MySQL 资源清单，不是 kube-apiserver 实时状态；conditions/containers/events/resource_limits/probe_summary 不可用",
+       "reason": "inventory_only",
+       "source": "kubernetes"
+      }
+     ],
+     "query_time": "2026-10-12T15:27:30+08:00",
+     "time_range": {
+      "end_time": "2026-10-12T15:27:30+08:00",
+      "start_time": "2026-10-12T15:12:30+08:00"
+     },
+     "truncated": false
+    },
+    "status": {
+     "phase": "Running"
+    }
+   },
+   "sample_origin": "D:/Business/Agents/RCAgent/test-results/20261012-k8s-redeploy (workspace version 88 / live-iam)"
+  },
+  "get_pod_network_summary": {
+   "arguments": {
+    "pod_uid": "1f13370a-5c50-4f28-959f-83fa4f1a9a62",
+    "cluster": "rd2",
+    "direction": "both",
+    "top_n": 20
+   },
+   "observations": {
+    "meta": {
+     "data_freshness": "unknown",
+     "data_gaps": [],
+     "query_time": "2026-10-12T15:27:30+08:00",
+     "time_range": {
+      "end_time": "2026-10-12T15:27:30+08:00",
+      "start_time": "2026-10-12T15:12:30+08:00"
+     },
+     "truncated": false
+    },
+    "summary": {
+     "anomalies": [],
+     "downstreams": [
+      {
+       "name": "mysql-f9db5ccd9-4d7pb",
+       "role": "server"
+      },
+      {
+       "name": "coredns-6ffd7956b8-jz7hx",
+       "role": "server"
+      },
+      {
+       "name": "coredns-6ffd7956b8-hqvsk",
+       "role": "server"
+      }
+     ],
+     "establish_fail_ratio": 0,
+     "evidence": [],
+     "retrans_ratio": 0,
+     "rst_count": 0,
+     "rtt_avg_ms": 0.021489864864864865,
+     "upstreams": [
+      {
+       "name": "frontend-6cb4bb9bf4-lphqf",
+       "role": "client"
+      }
+     ],
+     "zero_window_count": 0
+    }
+   },
+   "sample_origin": "D:/Business/Agents/RCAgent/test-results/20261012-k8s-redeploy (workspace version 88 / live-iam)"
+  },
+  "get_pod_application_summary": {
+   "arguments": {
+    "pod_uid": "1f13370a-5c50-4f28-959f-83fa4f1a9a62",
+    "cluster": "rd2",
+    "role": "both",
+    "top_n": 20
+   },
+   "observations": {
+    "meta": {
+     "data_freshness": "unknown",
+     "data_gaps": [],
+     "query_time": "2026-10-12T15:27:30+08:00",
+     "time_range": {
+      "end_time": "2026-10-12T15:27:30+08:00",
+      "start_time": "2026-10-12T15:12:30+08:00"
+     },
+     "truncated": false
+    },
+    "summary": {
+     "abnormal_endpoints": [
+      {
+       "endpoint": "kylin-insights-redis",
+       "error_ratio": 1,
+       "p95_ms": 6.81245,
+       "p99_ms": 9.063180000000001,
+       "protocol": "DNS",
+       "rps": 83.38666666666667
+      },
+      {
+       "endpoint": "kylin-insights-redis.kylin-insights.svc.cluster.local",
+       "error_ratio": 1,
+       "p95_ms": 0.785,
+       "p99_ms": 2.274,
+       "protocol": "DNS",
+       "rps": 41.69777777777778
+      },
+      {
+       "endpoint": "kylin-insights-redis.svc.cluster.local",
+       "error_ratio": 1,
+       "p95_ms": 0.527,
+       "p99_ms": 1.5296100000000041,
+       "protocol": "DNS",
+       "rps": 41.69777777777778
+      },
+      {
+       "endpoint": "kylin-insights-redis.cluster.local",
+       "error_ratio": 1,
+       "p95_ms": 0.492,
+       "p99_ms": 1.3657200000000012,
+       "protocol": "DNS",
+       "rps": 41.69777777777778
+      },
+      {
+       "endpoint": "/internal/gateway/authorize",
+       "error_ratio": 1,
+       "p95_ms": 55.992,
+       "p99_ms": 55.992,
+       "protocol": "HTTP",
+       "rps": 0.0011111111111111111
+      },
+      {
+       "endpoint": "SELECT COUNT(*),\n       COALESCE(MAX(id), 0),\n       CAST(COALESCE(SUM(CRC32(CONCAT_WS('#', ptype, v0, v1, v2, v3, v4, v5))), 0) AS SIGNED)\nFROM casbin_rule",
+       "error_ratio": 0,
+       "p95_ms": 54.595150000000004,
+       "p99_ms": 2693.70655,
+       "protocol": "MySQL",
+       "rps": 0.06666666666666667
+      }
+     ],
+     "error_ratio": 0.9125541672948695,
+     "evidence": [],
+     "p95_ms": 3.6119999999999965,
+     "p99_ms": 8.029220000000008,
+     "protocol_dist": {
+      "DNS": 0.9126465739034011,
+      "HTTP": 0.000656573271145307,
+      "MySQL": 0.08669685282545364
+     },
+     "total_rps": 228.45888888888888
+    }
+   },
+   "sample_origin": "D:/Business/Agents/RCAgent/test-results/20261012-k8s-redeploy (workspace version 88 / live-iam)"
+  },
+  "get_abnormal_requests": {
+   "arguments": {
+    "pod_uid": "1f13370a-5c50-4f28-959f-83fa4f1a9a62",
+    "cluster": "rd2",
+    "sample_size": 30
+   },
+   "observations": {
+    "meta": {
+     "data_freshness": "unknown",
+     "data_gaps": [
+      {
+       "impact": "异常请求样本均未采集 trace_id，无法从 get_abnormal_requests 下钻 trace_request；需检查 Agent 的 L7 trace header 采集配置或应用是否传播 trace header",
+       "reason": "trace_id_unavailable",
+       "source": "l7_trace"
+      }
+     ],
+     "query_time": "2026-10-12T15:28:49+08:00",
+     "time_range": {
+      "end_time": "2026-10-12T15:28:49+08:00",
+      "start_time": "2026-10-12T15:13:49+08:00"
+     },
+     "truncated": false
+    },
+    "samples": [
+     {
+      "client": "iam-server-86cb7cd948-l24zd",
+      "duration_ms": 1.371,
+      "endpoint": "kylin-insights-redis",
+      "error_info": "response_code=5",
+      "protocol": "DNS",
+      "request_time": "2026-10-12 15:28:26.491139 +0800 CST",
+      "response_code": 5,
+      "response_status": 3,
+      "server": "coredns-6ffd7956b8-jz7hx",
+      "trace_id": ""
+     },
+     {
+      "client": "iam-server-86cb7cd948-l24zd",
+      "duration_ms": 1.402,
+      "endpoint": "kylin-insights-redis",
+      "error_info": "response_code=5",
+      "protocol": "DNS",
+      "request_time": "2026-10-12 15:28:26.491117 +0800 CST",
+      "response_code": 5,
+      "response_status": 3,
+      "server": "",
+      "trace_id": ""
+     },
+     {
+      "client": "iam-server-86cb7cd948-l24zd",
+      "duration_ms": 1.365,
+      "endpoint": "kylin-insights-redis",
+      "error_info": "response_code=5",
+      "protocol": "DNS",
+      "request_time": "2026-10-12 15:28:26.491014 +0800 CST",
+      "response_code": 5,
+      "response_status": 3,
+      "server": "coredns-6ffd7956b8-hqvsk",
+      "trace_id": ""
+     },
+     {
+      "client": "iam-server-86cb7cd948-l24zd",
+      "duration_ms": 1.389,
+      "endpoint": "kylin-insights-redis",
+      "error_info": "response_code=5",
+      "protocol": "DNS",
+      "request_time": "2026-10-12 15:28:26.491002 +0800 CST",
+      "response_code": 5,
+      "response_status": 3,
+      "server": "",
+      "trace_id": ""
+     },
+     {
+      "client": "iam-server-86cb7cd948-l24zd",
+      "duration_ms": 1.105,
+      "endpoint": "kylin-insights-redis",
+      "error_info": "response_code=5",
+      "protocol": "DNS",
+      "request_time": "2026-10-12 15:28:26.489791 +0800 CST",
+      "response_code": 5,
+      "response_status": 3,
+      "server": "coredns-6ffd7956b8-jz7hx",
+      "trace_id": ""
+     },
+     {
+      "client": "iam-server-86cb7cd948-l24zd",
+      "duration_ms": 1.15,
+      "endpoint": "kylin-insights-redis",
+      "error_info": "response_code=5",
+      "protocol": "DNS",
+      "request_time": "2026-10-12 15:28:26.489764 +0800 CST",
+      "response_code": 5,
+      "response_status": 3,
+      "server": "",
+      "trace_id": ""
+     },
+     {
+      "client": "iam-server-86cb7cd948-l24zd",
+      "duration_ms": 1.104,
+      "endpoint": "kylin-insights-redis",
+      "error_info": "response_code=5",
+      "protocol": "DNS",
+      "request_time": "2026-10-12 15:28:26.489745 +0800 CST",
+      "response_code": 5,
+      "response_status": 3,
+      "server": "coredns-6ffd7956b8-hqvsk",
+      "trace_id": ""
+     },
+     {
+      "client": "iam-server-86cb7cd948-l24zd",
+      "duration_ms": 1.128,
+      "endpoint": "kylin-insights-redis",
+      "error_info": "response_code=5",
+      "protocol": "DNS",
+      "request_time": "2026-10-12 15:28:26.489733 +0800 CST",
+      "response_code": 5,
+      "response_status": 3,
+      "server": "",
+      "trace_id": ""
+     },
+     {
+      "client": "iam-server-86cb7cd948-l24zd",
+      "duration_ms": 0.169,
+      "endpoint": "kylin-insights-redis.cluster.local",
+      "error_info": "response_code=3",
+      "protocol": "DNS",
+      "request_time": "2026-10-12 15:28:26.489397 +0800 CST",
+      "response_code": 3,
+      "response_status": 4,
+      "server": "coredns-6ffd7956b8-hqvsk",
+      "trace_id": ""
+     },
+     {
+      "client": "iam-server-86cb7cd948-l24zd",
+      "duration_ms": 0.216,
+      "endpoint": "kylin-insights-redis.cluster.local",
+      "error_info": "response_code=3",
+      "protocol": "DNS",
+      "request_time": "2026-10-12 15:28:26.489359 +0800 CST",
+      "response_code": 3,
+      "response_status": 4,
+      "server": "",
+      "trace_id": ""
+     },
+     {
+      "client": "iam-server-86cb7cd948-l24zd",
+      "duration_ms": 0.317,
+      "endpoint": "kylin-insights-redis.cluster.local",
+      "error_info": "response_code=3",
+      "protocol": "DNS",
+      "request_time": "2026-10-12 15:28:26.489324 +0800 CST",
+      "response_code": 3,
+      "response_status": 4,
+      "server": "coredns-6ffd7956b8-hqvsk",
+      "trace_id": ""
+     },
+     {
+      "client": "iam-server-86cb7cd948-l24zd",
+      "duration_ms": 0.337,
+      "endpoint": "kylin-insights-redis.cluster.local",
+      "error_info": "response_code=3",
+      "protocol": "DNS",
+      "request_time": "2026-10-12 15:28:26.489311 +0800 CST",
+      "response_code": 3,
+      "response_status": 4,
+      "server": "",
+      "trace_id": ""
+     },
+     {
+      "client": "iam-server-86cb7cd948-l24zd",
+      "duration_ms": 0.429,
+      "endpoint": "kylin-insights-redis.svc.cluster.local",
+      "error_info": "response_code=3",
+      "protocol": "DNS",
+      "request_time": "2026-10-12 15:28:26.488672 +0800 CST",
+      "response_code": 3,
+      "response_status": 4,
+      "server": "coredns-6ffd7956b8-hqvsk",
+      "trace_id": ""
+     },
+     {
+      "client": "iam-server-86cb7cd948-l24zd",
+      "duration_ms": 0.551,
+      "endpoint": "kylin-insights-redis.svc.cluster.local",
+      "error_info": "response_code=3",
+      "protocol": "DNS",
+      "request_time": "2026-10-12 15:28:26.488652 +0800 CST",
+      "response_code": 3,
+      "response_status": 4,
+      "server": "coredns-6ffd7956b8-hqvsk",
+      "trace_id": ""
+     },
+     {
+      "client": "iam-server-86cb7cd948-l24zd",
+      "duration_ms": 0.574,
+      "endpoint": "kylin-insights-redis.svc.cluster.local",
+      "error_info": "response_code=3",
+      "protocol": "DNS",
+      "request_time": "2026-10-12 15:28:26.488636 +0800 CST",
+      "response_code": 3,
+      "response_status": 4,
+      "server": "",
+      "trace_id": ""
+     },
+     {
+      "client": "iam-server-86cb7cd948-l24zd",
+      "duration_ms": 0.48,
+      "endpoint": "kylin-insights-redis.svc.cluster.local",
+      "error_info": "response_code=3",
+      "protocol": "DNS",
+      "request_time": "2026-10-12 15:28:26.488635 +0800 CST",
+      "response_code": 3,
+      "response_status": 4,
+      "server": "",
+      "trace_id": ""
+     },
+     {
+      "client": "iam-server-86cb7cd948-l24zd",
+      "duration_ms": 0.309,
+      "endpoint": "kylin-insights-redis.kylin-insights.svc.cluster.local",
+      "error_info": "response_code=3",
+      "protocol": "DNS",
+      "request_time": "2026-10-12 15:28:26.488094 +0800 CST",
+      "response_code": 3,
+      "response_status": 4,
+      "server": "coredns-6ffd7956b8-jz7hx",
+      "trace_id": ""
+     },
+     {
+      "client": "iam-server-86cb7cd948-l24zd",
+      "duration_ms": 0.382,
+      "endpoint": "kylin-insights-redis.kylin-insights.svc.cluster.local",
+      "error_info": "response_code=3",
+      "protocol": "DNS",
+      "request_time": "2026-10-12 15:28:26.48809 +0800 CST",
+      "response_code": 3,
+      "response_status": 4,
+      "server": "coredns-6ffd7956b8-jz7hx",
+      "trace_id": ""
+     },
+     {
+      "client": "iam-server-86cb7cd948-l24zd",
+      "duration_ms": 0.385,
+      "endpoint": "kylin-insights-redis.kylin-insights.svc.cluster.local",
+      "error_info": "response_code=3",
+      "protocol": "DNS",
+      "request_time": "2026-10-12 15:28:26.488036 +0800 CST",
+      "response_code": 3,
+      "response_status": 4,
+      "server": "",
+      "trace_id": ""
+     },
+     {
+      "client": "iam-server-86cb7cd948-l24zd",
+      "duration_ms": 0.446,
+      "endpoint": "kylin-insights-redis.kylin-insights.svc.cluster.local",
+      "error_info": "response_code=3",
+      "protocol": "DNS",
+      "request_time": "2026-10-12 15:28:26.488035 +0800 CST",
+      "response_code": 3,
+      "response_status": 4,
+      "server": "",
+      "trace_id": ""
+     },
+     {
+      "client": "iam-server-86cb7cd948-l24zd",
+      "duration_ms": 2.482,
+      "endpoint": "kylin-insights-redis",
+      "error_info": "response_code=5",
+      "protocol": "DNS",
+      "request_time": "2026-10-12 15:28:26.384727 +0800 CST",
+      "response_code": 5,
+      "response_status": 3,
+      "server": "coredns-6ffd7956b8-jz7hx",
+      "trace_id": ""
+     },
+     {
+      "client": "iam-server-86cb7cd948-l24zd",
+      "duration_ms": 2.544,
+      "endpoint": "kylin-insights-redis",
+      "error_info": "response_code=5",
+      "protocol": "DNS",
+      "request_time": "2026-10-12 15:28:26.384683 +0800 CST",
+      "response_code": 5,
+      "response_status": 3,
+      "server": "",
+      "trace_id": ""
+     },
+     {
+      "client": "iam-server-86cb7cd948-l24zd",
+      "duration_ms": 2.742,
+      "endpoint": "kylin-insights-redis",
+      "error_info": "response_code=5",
+      "protocol": "DNS",
+      "request_time": "2026-10-12 15:28:26.384549 +0800 CST",
+      "response_code": 5,
+      "response_status": 3,
+      "server": "coredns-6ffd7956b8-jz7hx",
+      "trace_id": ""
+     },
+     {
+      "client": "iam-server-86cb7cd948-l24zd",
+      "duration_ms": 2.771,
+      "endpoint": "kylin-insights-redis",
+      "error_info": "response_code=5",
+      "protocol": "DNS",
+      "request_time": "2026-10-12 15:28:26.384538 +0800 CST",
+      "response_code": 5,
+      "response_status": 3,
+      "server": "",
+      "trace_id": ""
+     },
+     {
+      "client": "iam-server-86cb7cd948-l24zd",
+      "duration_ms": 2.19,
+      "endpoint": "kylin-insights-redis",
+      "error_info": "response_code=5",
+      "protocol": "DNS",
+      "request_time": "2026-10-12 15:28:26.382206 +0800 CST",
+      "response_code": 5,
+      "response_status": 3,
+      "server": "coredns-6ffd7956b8-jz7hx",
+      "trace_id": ""
+     },
+     {
+      "client": "iam-server-86cb7cd948-l24zd",
+      "duration_ms": 2.241,
+      "endpoint": "kylin-insights-redis",
+      "error_info": "response_code=5",
+      "protocol": "DNS",
+      "request_time": "2026-10-12 15:28:26.38217 +0800 CST",
+      "response_code": 5,
+      "response_status": 3,
+      "server": "",
+      "trace_id": ""
+     },
+     {
+      "client": "iam-server-86cb7cd948-l24zd",
+      "duration_ms": 2.224,
+      "endpoint": "kylin-insights-redis",
+      "error_info": "response_code=5",
+      "protocol": "DNS",
+      "request_time": "2026-10-12 15:28:26.382121 +0800 CST",
+      "response_code": 5,
+      "response_status": 3,
+      "server": "coredns-6ffd7956b8-jz7hx",
+      "trace_id": ""
+     },
+     {
+      "client": "iam-server-86cb7cd948-l24zd",
+      "duration_ms": 2.269,
+      "endpoint": "kylin-insights-redis",
+      "error_info": "response_code=5",
+      "protocol": "DNS",
+      "request_time": "2026-10-12 15:28:26.382091 +0800 CST",
+      "response_code": 5,
+      "response_status": 3,
+      "server": "",
+      "trace_id": ""
+     },
+     {
+      "client": "iam-server-86cb7cd948-l24zd",
+      "duration_ms": 0.347,
+      "endpoint": "kylin-insights-redis.cluster.local",
+      "error_info": "response_code=3",
+      "protocol": "DNS",
+      "request_time": "2026-10-12 15:28:26.381528 +0800 CST",
+      "response_code": 3,
+      "response_status": 4,
+      "server": "coredns-6ffd7956b8-hqvsk",
+      "trace_id": ""
+     },
+     {
+      "client": "iam-server-86cb7cd948-l24zd",
+      "duration_ms": 0.4,
+      "endpoint": "kylin-insights-redis.cluster.local",
+      "error_info": "response_code=3",
+      "protocol": "DNS",
+      "request_time": "2026-10-12 15:28:26.38149 +0800 CST",
+      "response_code": 3,
+      "response_status": 4,
+      "server": "",
+      "trace_id": ""
+     }
+    ]
+   },
+   "sample_origin": "D:/Business/Agents/RCAgent/test-results/20261012-k8s-redeploy (workspace version 88 / live-iam)"
+  },
+  "compare_pod_with_peers": {
+   "arguments": {
+    "pod_uid": "6190faf3-2a15-4027-ac33-8a122e6cc654",
+    "cluster": "rd2",
+    "metrics": [
+     "error_ratio",
+     "retrans",
+     "rtt"
+    ]
+   },
+   "observations": {
+    "diffs": [
+     {
+      "deviation": 0.9993894767914818,
+      "metric": "error_ratio",
+      "node": "k8s-10-44-56-108",
+      "peer_pod_name": "coredns-6ffd7956b8-hqvsk",
+      "peer_pod_uid": "a3be8877-23d1-4606-8bd8-1768a26afa90",
+      "peer_value": 97.57041317922148,
+      "pod_value": 97.51084417751085
+     },
+     {
+      "deviation": 0,
+      "metric": "retrans",
+      "node": "k8s-10-44-56-108",
+      "peer_pod_name": "coredns-6ffd7956b8-hqvsk",
+      "peer_pod_uid": "a3be8877-23d1-4606-8bd8-1768a26afa90",
+      "peer_value": 0,
+      "pod_value": 0
+     },
+     {
+      "deviation": 1.024975166737619,
+      "metric": "rtt",
+      "node": "k8s-10-44-56-108",
+      "peer_pod_name": "coredns-6ffd7956b8-hqvsk",
+      "peer_pod_uid": "a3be8877-23d1-4606-8bd8-1768a26afa90",
+      "peer_value": 45.17307692307692,
+      "pod_value": 46.30128205128205
+     }
+    ],
+    "meta": {
+     "data_freshness": "unknown",
+     "data_gaps": [],
+     "query_time": "2026-10-12T15:29:09+08:00",
+     "time_range": {
+      "end_time": "2026-10-12T15:29:09+08:00",
+      "start_time": "2026-10-12T15:14:09+08:00"
+     },
+     "truncated": false
+    },
+    "single_pod_abnormal": false
+   },
+   "sample_origin": "D:/Business/Agents/RCAgent/test-results/20261012-k8s-redeploy (workspace version 88 / live-iam)"
+  },
+  "get_service_backends": {
+   "arguments": {
+    "pod_scan_limit": 500,
+    "service_uid": "1777fee9-e2c1-4ad4-9ca5-cc7648ae8e3c",
+    "service_name": "iam-server",
+    "cluster": "rd2",
+    "namespace": "kylin-insights"
+   },
+   "observations": {
+    "data_source": "server_inventory",
+    "freshness": "unknown",
+    "matching_basis": "inventory_selector",
+    "matching_note": "候选 Pod 来自 Controller/MySQL 资源清单的 selector 匹配，不等于 kube-apiserver 实时 EndpointSlice 的 Ready 后端，也不代表这些 Pod 正在接流量",
+    "pods": [
+     {
+      "cluster": "rd2",
+      "created_at": "2026-09-24T02:11:05Z",
+      "matched_labels": {
+       "app.kubernetes.io/name": "iam-server"
+      },
+      "name": "iam-server-86cb7cd948-l24zd",
+      "namespace": "kylin-insights",
+      "node_id": 4,
+      "state": "Running",
+      "uid": "1f13370a-5c50-4f28-959f-83fa4f1a9a62"
+     }
+    ],
+    "ports": [
+     {
+      "name": "http",
+      "node_port": 30800,
+      "port": 8000,
+      "protocol": "TCP",
+      "target_port": 8000
+     },
+     {
+      "name": "websocket",
+      "node_port": 31441,
+      "port": 8001,
+      "protocol": "TCP",
+      "target_port": 8001
+     },
+     {
+      "name": "metrics",
+      "node_port": 32355,
+      "port": 9091,
+      "protocol": "TCP",
+      "target_port": 9091
+     },
+     {
+      "name": "grpc",
+      "node_port": 31115,
+      "port": 9000,
+      "protocol": "TCP",
+      "target_port": 9000
+     },
+     {
+      "name": "gateway-auth",
+      "node_port": 30174,
+      "port": 8002,
+      "protocol": "TCP",
+      "target_port": 8002
+     }
+    ],
+    "ready_status": "unknown",
+    "service": {
+     "cluster": "rd2",
+     "cluster_ip": "10.103.210.141",
+     "id": 5,
+     "name": "iam-server",
+     "namespace": "kylin-insights",
+     "selector": {
+      "app.kubernetes.io/name": "iam-server"
+     },
+     "selector_raw": "app.kubernetes.io/name:iam-server",
+     "type": "NodePort",
+     "uid": "1777fee9-e2c1-4ad4-9ca5-cc7648ae8e3c"
+    },
+    "status": "ok",
+    "truncated": false,
+    "warnings": []
+   },
+   "sample_origin": "D:/Business/Agents/RCAgent/test-results/20261012-k8s-redeploy (workspace version 88 / live-iam)"
+  },
+  "diagnose_pod": {
+   "arguments": {
+    "cluster": "rd2",
+    "namespace": "kylin-insights",
+    "pod": "example-0"
+   },
+   "observations": {
+    "status": "ok",
+    "target": {
+     "cluster": "rd2",
+     "namespace": "kylin-insights",
+     "pod": "example-0",
+     "pod_uid": "uid-1"
+    },
+    "symptom": "latency",
+    "scope": [
+     "network",
+     "application"
+    ],
+    "root_cause_candidates": [
+     {
+      "cause": "egress degradation to postgres:5432",
+      "confidence": 0.93
+     }
+    ],
+    "excluded": [
+     "global workload failure"
+    ],
+    "recommendations": [
+     "inspect egress path"
+    ],
+    "data_gaps": [
+     "Kubernetes control-plane runtime details are unavailable."
+    ]
+   },
+   "sample_origin": "local_testing/fixture_mcp_server.py (deterministic Gateway fixture shape)"
+  },
+  "query_metrics": {
+   "arguments": {
+    "metric_key": "error_rate",
+    "target_kind": "pod",
+    "target_name": "payment-7d9f-abcde"
+   },
+   "observations": {
+    "status": "ok",
+    "metric_key": "error_rate",
+    "unit": "ratio",
+    "series_count": 2,
+    "point_count": 4,
+    "series": [
+     {
+      "labels": {
+       "pod": "payment-7d9f-abcde"
+      },
+      "points": [
+       {
+        "t": "t1",
+        "v": 0.21
+       },
+       {
+        "t": "t2",
+        "v": 0.42
+       }
+      ]
+     }
+    ],
+    "window": {
+     "start": "2026-09-30T10:00:00+08:00",
+     "end": "2026-09-30T10:15:00+08:00",
+     "step": "60s"
+    }
+   },
+   "sample_origin": "local_testing/tests/test_triage_discovery.py::metrics_response/series"
+  },
+  "search_traces": {
+   "arguments": {
+    "service_name": "payment",
+    "min_duration": "500ms"
+   },
+   "observations": {
+    "status": "ok",
+    "service_tag": "resource.service.name",
+    "trace_count": 2,
+    "traces": [
+     {
+      "trace_id": "4bf92f3577b34da6a3ce929d0e0e4736",
+      "status": "error",
+      "duration_ms": 3200.0,
+      "start_time": "2026-09-30T10:12:00+08:00",
+      "root_span": "GET /pay"
+     }
+    ],
+    "tags_applied": [
+     "resource.service.name=\"payment\""
+    ],
+    "truncated": false
+   },
+   "sample_origin": "local_testing/tests/test_triage_discovery.py::traces_response/trace"
+  },
+  "get_trace": {
+   "arguments": {
+    "trace_id": "4bf92f3577b34da6a3ce929d0e0e4736"
+   },
+   "observations": {
+    "status": "ok",
+    "trace_id": "4bf92f3577b34da6a3ce929d0e0e4736",
+    "spans": [
+     {
+      "span_id": "a1",
+      "parent_span_id": "",
+      "service": "payment",
+      "operation": "GET /pay",
+      "duration_ms": 3200.0,
+      "status": "error",
+      "depth": 0
+     }
+    ],
+    "span_count": 2,
+    "max_depth": 1,
+    "critical_path": [
+     "a1",
+     "b1"
+    ],
+    "truncated_reason": ""
+   },
+   "sample_origin": "local_testing/tests/test_triage_discovery.py::trace_detail_response"
+  },
+  "trace_request": {
+   "arguments": {
+    "trace_id": "fixture-trace-db-timeout-001"
+   },
+   "observations": {
+    "status": "ok",
+    "trace_id": "fixture-trace-db-timeout-001",
+    "duration_ms": 2043,
+    "critical_path": [
+     {
+      "service": "frontend",
+      "operation": "POST /checkout",
+      "duration_ms": 2043
+     }
+    ],
+    "bottleneck_span": "postgres/connect",
+    "downstream_duration_ratio": 0.88,
+    "data_gaps": []
+   },
+   "sample_origin": "local_testing/fixture_mcp_server.py::trace_request"
+  }
+ }
+}

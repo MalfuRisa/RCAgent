@@ -1,0 +1,6 @@
+cff-version: "1.2.0"
+title: "RCAgent"
+message: "Please cite this repository when using RCAgent."
+authors:
+  - name: "MalfuRisa"
+repository-code: "https://github.com/MalfuRisa/RCAgent"

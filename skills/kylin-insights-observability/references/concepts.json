@@ -1,0 +1,216 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "file": "packages/ai-contracts/src/agentConcepts.ts",
+    "generatedBy": "apps/insights-mcp/scripts/skill-gen.ts",
+    "patternLanguage": "ECMAScript RegExp",
+    "availability": "unknown",
+    "note": "Concept/navigation rules only; not live resources or proof of metric availability."
+  },
+  "concepts": [
+    {
+      "key": "latency",
+      "label": "延迟",
+      "patternSource": "慢|延迟|时延|卡顿|卡住|很卡|耗时|响应时间|超时|latency|slow|\\brt\\b|p9[59]",
+      "patternFlags": "i",
+      "meaning": "应用响应时延与分位数，以及 TCP 建连 / 系统时延",
+      "panels": [
+        {
+          "dataset": "app-path",
+          "metrics": [
+            "server_response_time",
+            "percentile95",
+            "percentile99"
+          ]
+        },
+        {
+          "dataset": "network-path",
+          "metrics": [
+            "tcp_rtt",
+            "tcp_system_latency",
+            "application_response_latency"
+          ]
+        }
+      ]
+    },
+    {
+      "key": "error",
+      "label": "错误",
+      "patternSource": "错误|报错|出错|异常|失败率|5xx|4xx|error|exception|告警",
+      "patternFlags": "i",
+      "meaning": "服务端 / 客户端异常比例与应用异常比例",
+      "panels": [
+        {
+          "dataset": "app-path",
+          "metrics": [
+            "server_error_ratio",
+            "client_error_ratio",
+            "request_rate"
+          ]
+        },
+        {
+          "dataset": "network-path",
+          "metrics": [
+            "application_exception_ratio"
+          ]
+        }
+      ]
+    },
+    {
+      "key": "throughput",
+      "label": "请求量",
+      "patternSource": "请求量|请求数|调用量|访问量|qps|tps|吞吐|并发|request rate",
+      "patternFlags": "i",
+      "meaning": "请求速率与响应速率",
+      "panels": [
+        {
+          "dataset": "app-path",
+          "metrics": [
+            "request_rate",
+            "server_response_rate"
+          ]
+        }
+      ]
+    },
+    {
+      "key": "packet-loss",
+      "label": "丢包重传",
+      "patternSource": "丢包|重传|抖动|网络差|网络不稳|retrans|packet loss|零窗口|zero.?window",
+      "patternFlags": "i",
+      "meaning": "TCP 重传比例（总体 / 客户端 / 服务端）与零窗口",
+      "panels": [
+        {
+          "dataset": "network-path",
+          "metrics": [
+            "tcp_retrans_ratio",
+            "tcp_client_retrans_ratio",
+            "tcp_server_retrans_ratio",
+            "tcp_zero_window"
+          ]
+        }
+      ]
+    },
+    {
+      "key": "connection",
+      "label": "建连",
+      "patternSource": "建连|连接失败|连不上|连接超时|握手|syn|connect|连接数|拒绝连接|refused",
+      "patternFlags": "i",
+      "meaning": "TCP 建连失败比例、建连时延与新建 / 活跃连接速率",
+      "panels": [
+        {
+          "dataset": "network-path",
+          "metrics": [
+            "tcp_establish_fail_ratio",
+            "tcp_rtt",
+            "new_connection_rate",
+            "active_connection_rate"
+          ]
+        }
+      ]
+    },
+    {
+      "key": "traffic",
+      "label": "流量",
+      "patternSource": "流量|带宽|网速|bps|traffic|bandwidth|吞吐量",
+      "patternFlags": "i",
+      "meaning": "流量速率（总 / 发送 / 接收）",
+      "panels": [
+        {
+          "dataset": "network-path",
+          "metrics": [
+            "flow_rate",
+            "send_flow_rate",
+            "receive_flow_rate"
+          ]
+        }
+      ]
+    },
+    {
+      "key": "cpu",
+      "label": "CPU",
+      "patternSource": "cpu|负载|load|算力|处理器",
+      "patternFlags": "i",
+      "meaning": "节点 CPU 使用（用户态 / 内核态 / IO 等待 / 软中断）与 1 / 5 / 15 分钟负载",
+      "panels": [
+        {
+          "dataset": "system-cpu-usage",
+          "metrics": [
+            "cpu_usage_user",
+            "cpu_usage_system",
+            "cpu_usage_iowait",
+            "cpu_usage_softirq"
+          ]
+        },
+        {
+          "dataset": "system-cpu-load",
+          "metrics": [
+            "cpu_loadavg_load1",
+            "cpu_loadavg_load5",
+            "cpu_loadavg_load15"
+          ]
+        }
+      ]
+    },
+    {
+      "key": "memory",
+      "label": "内存",
+      "patternSource": "内存|oom|swap|memory|mem\\b",
+      "patternFlags": "i",
+      "meaning": "节点可用 / 空闲内存与 Swap 换入换出",
+      "panels": [
+        {
+          "dataset": "system-memory",
+          "metrics": [
+            "mem_info_stats_mem_available",
+            "mem_info_stats_mem_free",
+            "mem_info_stats_swap_in",
+            "mem_info_stats_swap_out"
+          ]
+        }
+      ]
+    },
+    {
+      "key": "io",
+      "label": "磁盘 IO",
+      "patternSource": "磁盘|硬盘|io等待|iowait|\\bio\\b|读写慢|disk",
+      "patternFlags": "i",
+      "meaning": "节点 IO 等待（CPU iowait）",
+      "panels": [
+        {
+          "dataset": "system-cpu-usage",
+          "metrics": [
+            "cpu_usage_iowait",
+            "cpu_usage_system"
+          ]
+        }
+      ]
+    }
+  ],
+  "overview": {
+    "key": "overview",
+    "label": "总览",
+    "patternSource": "健康|总览|概况|整体|大盘|情况|状态|overview|health",
+    "patternFlags": "i",
+    "meaning": "黄金指标总览：请求速率、错误比例、响应时延，以及重传 / 建连失败 / 建连时延",
+    "panels": [
+      {
+        "dataset": "app-path",
+        "metrics": [
+          "request_rate",
+          "server_error_ratio",
+          "server_response_time",
+          "percentile95"
+        ]
+      },
+      {
+        "dataset": "network-path",
+        "metrics": [
+          "tcp_retrans_ratio",
+          "tcp_establish_fail_ratio",
+          "tcp_rtt",
+          "flow_rate"
+        ]
+      }
+    ]
+  }
+}

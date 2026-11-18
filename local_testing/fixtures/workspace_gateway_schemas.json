@@ -1,0 +1,482 @@
+[
+  {
+    "name": "compare_pod_with_peers",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "pod_uid": {
+          "type": "string",
+          "description": "Pod 的 K8s UID（先通过 resolve_pod 获取）"
+        },
+        "cluster": {
+          "type": "string",
+          "description": "目标集群名称"
+        },
+        "metrics": {
+          "type": [
+            "null",
+            "array"
+          ],
+          "items": {
+            "type": "string"
+          },
+          "description": "对比指标，默认 rrt/error_ratio/retrans/rtt"
+        },
+        "start_time": {
+          "type": "string",
+          "description": "RFC3339 开始时间，缺省最近 15 分钟"
+        },
+        "end_time": {
+          "type": "string",
+          "description": "RFC3339 结束时间"
+        }
+      },
+      "required": [
+        "pod_uid",
+        "cluster"
+      ],
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "diagnose_pod",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "cluster": {
+          "type": "string",
+          "description": "目标集群名称，如 production"
+        },
+        "namespace": {
+          "type": "string",
+          "description": "目标命名空间"
+        },
+        "pod": {
+          "type": "string",
+          "description": "Pod 名称"
+        },
+        "symptom": {
+          "type": "string",
+          "description": "症状描述，如 请求超时 / 5xx 突增 / 重启频繁"
+        },
+        "scope": {
+          "type": [
+            "null",
+            "array"
+          ],
+          "items": {
+            "type": "string"
+          },
+          "description": "诊断范围：kubernetes / network / application / trace，默认全部"
+        },
+        "compare_with_peers": {
+          "type": "boolean",
+          "description": "是否与同 Workload 健康副本对比，默认 false"
+        },
+        "start_time": {
+          "type": "string",
+          "description": "RFC3339 开始时间，缺省最近 15 分钟"
+        },
+        "end_time": {
+          "type": "string",
+          "description": "RFC3339 结束时间"
+        }
+      },
+      "required": [
+        "cluster",
+        "namespace",
+        "pod"
+      ],
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "get_abnormal_requests",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "pod_uid": {
+          "type": "string",
+          "description": "Pod 的 K8s UID（先通过 resolve_pod 获取）"
+        },
+        "cluster": {
+          "type": "string",
+          "description": "目标集群名称"
+        },
+        "abnormal_type": {
+          "type": "string",
+          "description": "异常类型：error_5xx / timeout / slow，默认全部"
+        },
+        "sample_size": {
+          "type": "integer",
+          "description": "样本条数，默认 10，最大 50",
+          "minimum": -2147483648,
+          "maximum": 2147483647
+        },
+        "start_time": {
+          "type": "string",
+          "description": "RFC3339 开始时间，缺省最近 15 分钟"
+        },
+        "end_time": {
+          "type": "string",
+          "description": "RFC3339 结束时间"
+        }
+      },
+      "required": [
+        "pod_uid",
+        "cluster"
+      ],
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "get_pod_application_summary",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "pod_uid": {
+          "type": "string",
+          "description": "Pod 的 K8s UID（先通过 resolve_pod 获取）"
+        },
+        "cluster": {
+          "type": "string",
+          "description": "目标集群名称"
+        },
+        "role": {
+          "type": "string",
+          "description": "观测角色：client / server / both，默认 server"
+        },
+        "top_n": {
+          "type": "integer",
+          "description": "异常 Endpoint 返回条数，默认 20，最大 100",
+          "minimum": -2147483648,
+          "maximum": 2147483647
+        },
+        "start_time": {
+          "type": "string",
+          "description": "RFC3339 开始时间，缺省最近 15 分钟"
+        },
+        "end_time": {
+          "type": "string",
+          "description": "RFC3339 结束时间"
+        }
+      },
+      "required": [
+        "pod_uid",
+        "cluster"
+      ],
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "get_pod_network_summary",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "pod_uid": {
+          "type": "string",
+          "description": "Pod 的 K8s UID（先通过 resolve_pod 获取）"
+        },
+        "cluster": {
+          "type": "string",
+          "description": "目标集群名称"
+        },
+        "direction": {
+          "type": "string",
+          "description": "流量方向：ingress / egress / both，默认 both"
+        },
+        "top_n": {
+          "type": "integer",
+          "description": "上下游返回条数，默认 20，最大 100",
+          "minimum": -2147483648,
+          "maximum": 2147483647
+        },
+        "start_time": {
+          "type": "string",
+          "description": "RFC3339 开始时间，缺省最近 15 分钟"
+        },
+        "end_time": {
+          "type": "string",
+          "description": "RFC3339 结束时间"
+        }
+      },
+      "required": [
+        "pod_uid",
+        "cluster"
+      ],
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "get_pod_runtime_status",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "pod_uid": {
+          "type": "string",
+          "description": "Pod 的 K8s UID（先通过 resolve_pod 获取，不要用 Pod 名代替）"
+        },
+        "cluster": {
+          "type": "string",
+          "description": "目标集群名称"
+        },
+        "start_time": {
+          "type": "string",
+          "description": "RFC3339 开始时间，缺省最近 15 分钟，最大窗口 24 小时"
+        },
+        "end_time": {
+          "type": "string",
+          "description": "RFC3339 结束时间"
+        }
+      },
+      "required": [
+        "pod_uid",
+        "cluster"
+      ],
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "get_service_backends",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "cluster": {
+          "type": "string",
+          "description": "目标集群名称（必填）"
+        },
+        "namespace": {
+          "type": "string",
+          "description": "目标命名空间（必填，用于同命名空间内匹配）"
+        },
+        "service_uid": {
+          "type": "string",
+          "description": "Service 平台资源 UID（优先使用；来自 search_k8s_targets）"
+        },
+        "service_name": {
+          "type": "string",
+          "description": "Service 名称（精确匹配；与 service_uid 至少一个）"
+        },
+        "pod_scan_limit": {
+          "type": "integer",
+          "description": "Pod 扫描上限，默认 500；超过则 truncated=true"
+        }
+      },
+      "required": [
+        "cluster",
+        "namespace"
+      ],
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "get_trace",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "trace_id": {
+          "type": "string",
+          "description": "Trace ID，16 或 32 位十六进制字符串（通常来自 search_traces）"
+        },
+        "start_time": {
+          "type": "string",
+          "description": "RFC3339 开始时间；同一次调查尽量沿用 search_traces 的时间范围"
+        },
+        "end_time": {
+          "type": "string",
+          "description": "RFC3339 结束时间"
+        },
+        "max_spans": {
+          "type": "integer",
+          "description": "最多返回 Span 数，默认 200，最大 1000；超限 truncated=true"
+        }
+      },
+      "required": [
+        "trace_id"
+      ],
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "query_metrics",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "metric_key": {
+          "type": "string",
+          "description": "受控指标键：request_rate / error_rate / latency_p95（不支持原始 PromQL）"
+        },
+        "target_kind": {
+          "type": "string",
+          "description": "目标类型：service / pod，默认 service"
+        },
+        "target_name": {
+          "type": "string",
+          "description": "目标名称（Service 名或 Pod 名）"
+        },
+        "cluster": {
+          "type": "string",
+          "description": "集群名称（用于回显与标签范围说明）"
+        },
+        "namespace": {
+          "type": "string",
+          "description": "命名空间（必填，用于收窄指标标签范围）"
+        },
+        "start_time": {
+          "type": "string",
+          "description": "RFC3339 开始时间，缺省最近 15 分钟，最大窗口 24 小时"
+        },
+        "end_time": {
+          "type": "string",
+          "description": "RFC3339 结束时间"
+        },
+        "step": {
+          "type": "string",
+          "description": "采样步长，Go duration 形式（如 60s），范围 15s-1h，默认 60s"
+        },
+        "max_series": {
+          "type": "integer",
+          "description": "最多返回序列数，默认 10，最大 50"
+        },
+        "max_points": {
+          "type": "integer",
+          "description": "每条序列最多点数，默认 300，最大 2000"
+        }
+      },
+      "required": [
+        "metric_key",
+        "target_name",
+        "namespace"
+      ],
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "resolve_pod",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "cluster": {
+          "type": "string",
+          "description": "目标集群名称，如 production"
+        },
+        "namespace": {
+          "type": "string",
+          "description": "目标命名空间"
+        },
+        "pod": {
+          "type": "string",
+          "description": "Pod 名称，与 pod_ip 二选一"
+        },
+        "pod_ip": {
+          "type": "string",
+          "description": "Pod IP，与 pod 二选一"
+        }
+      },
+      "required": [
+        "cluster",
+        "namespace"
+      ],
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "search_k8s_targets",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "query": {
+          "type": "string",
+          "description": "要查找的服务名或 Pod 名（必填，1-128 字符）"
+        },
+        "kind": {
+          "type": "string",
+          "description": "查找类型：service / pod / auto，默认 auto"
+        },
+        "cluster": {
+          "type": "string",
+          "description": "限定集群名称；用户未提供时不要编造"
+        },
+        "namespace": {
+          "type": "string",
+          "description": "限定命名空间；用户未提供时不要编造"
+        },
+        "limit": {
+          "type": "integer",
+          "description": "最多返回候选数，默认 10，最大 20"
+        }
+      },
+      "required": [
+        "query"
+      ],
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "search_traces",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "service_name": {
+          "type": "string",
+          "description": "服务名（必填；对应 Tempo 服务标签，由 Gateway 映射）"
+        },
+        "cluster": {
+          "type": "string",
+          "description": "集群名称"
+        },
+        "namespace": {
+          "type": "string",
+          "description": "命名空间"
+        },
+        "start_time": {
+          "type": "string",
+          "description": "RFC3339 开始时间，缺省最近 15 分钟，最大窗口 24 小时"
+        },
+        "end_time": {
+          "type": "string",
+          "description": "RFC3339 结束时间"
+        },
+        "min_duration": {
+          "type": "string",
+          "description": "最小耗时，Go duration 形式（如 500ms）"
+        },
+        "max_duration": {
+          "type": "string",
+          "description": "最大耗时，Go duration 形式（如 10s）"
+        },
+        "tags": {
+          "type": "object",
+          "description": "附加标签过滤，仅允许白名单键：http.status_code / http.method / k8s.pod.name / span.kind / http.route",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "limit": {
+          "type": "integer",
+          "description": "最多返回条数，默认 20，最大 50"
+        }
+      },
+      "required": [
+        "service_name"
+      ],
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "trace_request",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "trace_id": {
+          "type": "string",
+          "description": "链路追踪 ID（先通过 get_abnormal_requests 获取样本中的 trace_id）"
+        }
+      },
+      "required": [
+        "trace_id"
+      ],
+      "additionalProperties": false
+    }
+  }
+]

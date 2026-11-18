@@ -1,0 +1,32 @@
+{
+  "source_run": "简化派工与证据上下文-2026-11-17/live-after-fix/live-path-latency",
+  "main_window": {
+    "start": 1794793620,
+    "end": 1794797220
+  },
+  "archived_invalid_tool_call": {
+    "name": "dispatch_tasks",
+    "args": "{\"tasks\": [{\"question\": \"在 KylinInsight 业务目录中查找 app-path 与 network-path 数据集的可用指标与过滤字段定义（尤其 server_response_time、request_rate、client/server 服务过滤字段），并确认 k8s-10-44-56-107 是否是目录中可识别的客户端服务名称候选。\", \"deliverable\": \"返回 app-path / network-path 的指标 key、单位、阈值档位与客户端/服务端过滤字段名，以及 k8s-10-44-56-107 在 tag 值中的存在情况。\", \"completion_criteria\": \"给出至少 app-path 的 server_response_time 与 request_rate 指标定义、客户端过滤字段 key 和单位，并说明目标名是否在目录/候选值中出现。\", \"why_needed\": \"先确定合法指标 key、过滤字段和对象名可用性，才能按原题方向做定向查询，避免编造字段。\", \"decision_impact\": \"若目标名不可识别或指标不可用，则后续改查路径清单或说明数据缺口。\", \"tools\": [\"insights_catalog\", \"insights_get_tags\", \"insights_meta_tag_values\"], \"window\": {\"start\": 1794793620, \"end\": 1794797220}, \"window_reason\": \"原题北京时间 2026-11-16 09:47–10:47 对应 Unix 秒窗\"}, \"return_mode\": \"first_result\"}]}",
+    "id": "call_aacd81167be3425a9b9ea451",
+    "sdk_error": null
+  },
+  "archived_mixed_source_task": {
+    "question": "在 KylinInsight 业务目录中查看 app-path 与 network-path 数据集的可用指标与过滤字段定义（尤其 server_response_time、request_rate、客户端/服务端服务过滤字段），并确认 k8s-10-44-56-107 是否是目录 tag 值中可识别的客户端服务名候选。",
+    "deliverable": "app-path / network-path 的指标 key、单位、阈值档位与客户端/服务端过滤字段名；k8s-10-44-56-107 在候选 tag 值中的存在情况。",
+    "completion_criteria": "给出至少 app-path 的 server_response_time 与 request_rate 指标定义、客户端过滤字段 key 与单位，并说明目标名是否在目录或候选值中出现。",
+    "why_needed": "先确定合法指标 key、过滤字段与对象名可用性，才能按原题方向做定向查询，避免编造字段。",
+    "decision_impact": "若目标名不可识别或指标不可用，则后续改查路径清单或明确列为数据缺口。",
+    "tools": [
+      "insights_catalog",
+      "insights_get_tags",
+      "insights_meta_tag_values"
+    ],
+    "window": {
+      "start": 1794793620,
+      "end": 1794797220
+    },
+    "window_reason": "原题北京时间 2026-11-16 09:47–10:47 对应 Unix 秒窗",
+    "return_mode": "first_result"
+  },
+  "note": "Original failure samples; the invalid call kept the SDK's raw string arguments and the mixed task kept the business+native tool combination."
+}

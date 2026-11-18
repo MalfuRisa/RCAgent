@@ -1,0 +1,521 @@
+{
+  "source": "2026-10-09-13Tool多场景联调/A-iam-pod-function-calling: first six actual queries + original report. Synthetic CoreDNS is separate.",
+  "proposed": {
+    "root_cause": "The iam-server pod cannot resolve its Redis dependency because the DNS name 'kylin-insights-redis' (and all of its search-suffix forms in the kylin-insights namespace) authoritatively returns NXDOMAIN from a healthy CoreDNS. This proves the Redis Service / DNS record does not exist in the cluster (missing/never-created, misnamed, or in a different namespace) rather than a resolver or network fault. The observable anomaly is the ~91.5% DNS-error ratio on the pod's egress path; the CONFIRMED root cause is the absence of the Redis Service/DNS record that iam-server is configured to reach. The failure is now 100% because every attempt by the Redis client to resolve the hostname fails, so all Redis-dependent requests error out. The likely trigger is a configuration/dependency mismatch (e.g., a new deployment or config referencing a Redis Service that was never provisioned, was renamed, or lives in another namespace).",
+    "affected_resources": [
+      "iam-server-86cb7cd948-l24zd",
+      "iam-server (Deployment/Service in kylin-insights)",
+      "kylin-insights-redis (missing Redis Service/DNS record)"
+    ],
+    "evidence_summary": "(1) Priority-1 L7 summary: pod error_ratio≈0.915 with DNS dominating the protocol distribution (91.53% DNS, 8.40% MySQL, 0.06% HTTP); all four Redis query names — kylin-insights-redis, .kylin-insights.svc.cluster.local, .svc.cluster.local, .cluster.local — show error_ratio=1.0 (100%), rps≈42.7–85.4. (2) L4 is clean: establish_fail_ratio=0, retrans_ratio=0, rst_count=0, zero_window_count=0, rtt≈0.018 ms; downstreams limited to mysql-f9db5ccd9-4d7pb + two CoreDNS pods, with NO Redis downstream. Compound diagnosis localized the fault to the egress/client path (egress error 91.58% vs ingress error 0) and explicitly excluded TCP-establish, transport-quality, zero-window and ingress-error causes. (3) Priority-3 abnormal-request samples (20/20 DNS failures over 11:12–11:27): the in-cluster names return response_code=3 (NXDOMAIN) and the bare name returns response_code=5; replies come from two distinct CoreDNS replicas (coredns-6ffd7956b8-jz7hx / -hqvsk) in 0.12–1.42 ms — i.e., fast, authoritative 'no such name' answers, not timeouts/SERVFAIL. (4) search_k8s_targets for 'kylin-insights-redis' in rd2/kylin-insights returned not_found (no matching Service/Pod), corroborating that the record/Service is absent. (5) Priority-2 could not obtain pod_uids for the CoreDNS pods (resolve_pod/search_k8s_targets not_found, inventory limited to 4 pods / 0 services), so no direct CoreDNS-side telemetry; however CoreDNS is exonerated by its fast, healthy responses in the priority-3 samples. (6) Data gaps: no trace_id on abnormal samples and 0 traces found, so no trace-level drill-down; no ready peer replicas for blast-radius comparison.",
+    "investigation_summary": "Investigation progressed from symptom localization to semantic root cause across three completed priority tasks. Priority 1 (epicenter) confirmed the pod's anomaly is a DNS-layer resolution failure on the egress path and definitively ruled out L4/TCP transport faults (clean establish/retrans/RST/zero-window metrics, negligible RTT). Priority 2 attempted the resolver-side check but could not locate the CoreDNS pods in the tooling inventory, leaving an evidence gap and explicitly declining to assert either a dependency/config or a platform/DNS cause without telemetry. Priority 3 (client-side DNS semantics) closed the gap by reading the actual DNS response codes from abnormal-request samples: consistent NXDOMAIN (rcode 3) for the in-cluster Redis names answered by two healthy CoreDNS replicas in sub-2 ms, combined with an inventory search that found no 'kylin-insights-redis' Service. This convergence of (a) authoritative NXDOMAIN, (b) healthy/fast CoreDNS, (c) clean L4 transport, and (d) absent Service inventory establishes that the failure is the non-existence of the Redis Service/DNS record the pod depends on — a dependency/configuration problem — not a DNS-resolver or network fault. The remaining tasks (priority 4 dependency existence, priority 5 peer blast-radius) were effectively already covered by priority-3's service-inventory search and by the priority-1 finding that no ready peer replicas exist, so no further iteration was warranted and the root cause is reported with high confidence.",
+    "detection": true,
+    "localization": [
+      "kylin-insights-redis"
+    ]
+  },
+  "input": {
+    "app_name": "A-iam-pod",
+    "app_summary": "检查 IAM Pod 最近 15 分钟的实际现状。已有观测提示 Redis 相关 DNS 错误，请核对证据、区分异常现象与已确认根因。",
+    "target_cluster": "rd2",
+    "target_namespace": "kylin-insights",
+    "problematic_pods": {},
+    "problematic_metrics": {},
+    "slow_traces": {},
+    "problematic_traces": {},
+    "symptoms": [],
+    "rca_tasks": [],
+    "rca_analyses_list": [],
+    "tasks_to_be_executed": [],
+    "final_report": {},
+    "prompts_config": {},
+    "target_resource": "iam-server-86cb7cd948-l24zd",
+    "trace_service_starting_point": "iam-server-86cb7cd948-l24zd"
+  },
+  "queries": [
+    {
+      "name": "resolve_pod",
+      "arguments": {
+        "cluster": "rd2",
+        "namespace": "kylin-insights",
+        "pod": "iam-server-86cb7cd948-l24zd"
+      },
+      "output": {
+        "ambiguous": false,
+        "meta": {
+          "data_freshness": "unknown",
+          "data_gaps": null,
+          "query_time": "2026-10-09T11:25:05+08:00",
+          "time_range": {
+            "end_time": "2026-10-09T11:25:05+08:00",
+            "start_time": "2026-10-09T11:10:05+08:00"
+          },
+          "truncated": false
+        },
+        "pods": [
+          {
+            "cluster": "rd2",
+            "containers": [
+              {
+                "container_id": "ccb362f01b29081f4bf50705374db76ff2a8cb3fe9c327ccaf76b4cdc2a81d4a",
+                "image": "",
+                "name": ""
+              }
+            ],
+            "created_at": "2026-09-24T10:11:05+08:00",
+            "ips": [
+              "10.244.34.202",
+              "fe80::8cc4:5aff:fe66:6dad"
+            ],
+            "labels": {
+              "app.kubernetes.io/name": "iam-server",
+              "pod-template-hash": "86cb7cd948"
+            },
+            "name": "iam-server-86cb7cd948-l24zd",
+            "namespace": "kylin-insights",
+            "node": "k8s-10-44-56-108",
+            "pod_uid": "1f13370a-5c50-4f28-959f-83fa4f1a9a62",
+            "services": [
+              {
+                "cluster_ip": "10.103.210.141",
+                "name": "iam-server",
+                "selector": "{\"app.kubernetes.io/name\":\"iam-server\"}",
+                "uid": "1777fee9-e2c1-4ad4-9ca5-cc7648ae8e3c"
+              }
+            ],
+            "workload": {
+              "kind": "Deployment",
+              "name": "iam-server",
+              "uid": "661c4fb4-eec5-4efb-8623-35c958bd6a54"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "get_pod_runtime_status",
+      "arguments": {
+        "pod_uid": "1f13370a-5c50-4f28-959f-83fa4f1a9a62",
+        "cluster": "rd2"
+      },
+      "output": {
+        "meta": {
+          "data_freshness": "unknown",
+          "data_gaps": [
+            {
+              "impact": "phase 来自 Controller MySQL 资源清单，不是 kube-apiserver 实时状态；conditions/containers/events/resource_limits/probe_summary 不可用",
+              "reason": "inventory_only",
+              "source": "kubernetes"
+            }
+          ],
+          "query_time": "2026-10-09T11:25:05+08:00",
+          "time_range": {
+            "end_time": "2026-10-09T11:25:05+08:00",
+            "start_time": "2026-10-09T11:10:05+08:00"
+          },
+          "truncated": false
+        },
+        "status": {
+          "phase": "Running"
+        }
+      }
+    },
+    {
+      "name": "get_pod_network_summary",
+      "arguments": {
+        "pod_uid": "1f13370a-5c50-4f28-959f-83fa4f1a9a62",
+        "cluster": "rd2",
+        "direction": "both",
+        "top_n": 20
+      },
+      "output": {
+        "meta": {
+          "data_freshness": "unknown",
+          "data_gaps": null,
+          "query_time": "2026-10-09T11:25:05+08:00",
+          "time_range": {
+            "end_time": "2026-10-09T11:25:05+08:00",
+            "start_time": "2026-10-09T11:10:05+08:00"
+          },
+          "truncated": false
+        },
+        "summary": {
+          "anomalies": null,
+          "downstreams": [
+            {
+              "name": "mysql-f9db5ccd9-4d7pb",
+              "role": "server"
+            },
+            {
+              "name": "coredns-6ffd7956b8-jz7hx",
+              "role": "server"
+            },
+            {
+              "name": "coredns-6ffd7956b8-hqvsk",
+              "role": "server"
+            }
+          ],
+          "establish_fail_ratio": 0,
+          "evidence": null,
+          "retrans_ratio": 0,
+          "rst_count": 0,
+          "rtt_avg_ms": 0.018647887323943665,
+          "upstreams": null,
+          "zero_window_count": 0
+        }
+      }
+    },
+    {
+      "name": "get_pod_application_summary",
+      "arguments": {
+        "pod_uid": "1f13370a-5c50-4f28-959f-83fa4f1a9a62",
+        "cluster": "rd2",
+        "role": "both",
+        "top_n": 20
+      },
+      "output": {
+        "meta": {
+          "data_freshness": "unknown",
+          "data_gaps": null,
+          "query_time": "2026-10-09T11:25:06+08:00",
+          "time_range": {
+            "end_time": "2026-10-09T11:25:06+08:00",
+            "start_time": "2026-10-09T11:10:06+08:00"
+          },
+          "truncated": false
+        },
+        "summary": {
+          "abnormal_endpoints": [
+            {
+              "endpoint": "kylin-insights-redis",
+              "error_ratio": 1,
+              "p95_ms": 2.4149,
+              "p99_ms": 5.727450000000001,
+              "protocol": "DNS",
+              "rps": 85.86111111111111
+            },
+            {
+              "endpoint": "kylin-insights-redis.kylin-insights.svc.cluster.local",
+              "error_ratio": 1,
+              "p95_ms": 0.688,
+              "p99_ms": 2.176450000000001,
+              "protocol": "DNS",
+              "rps": 42.93333333333333
+            },
+            {
+              "endpoint": "kylin-insights-redis.svc.cluster.local",
+              "error_ratio": 1,
+              "p95_ms": 0.48844999999999983,
+              "p99_ms": 1.5389900000000016,
+              "protocol": "DNS",
+              "rps": 42.93333333333333
+            },
+            {
+              "endpoint": "kylin-insights-redis.cluster.local",
+              "error_ratio": 1,
+              "p95_ms": 0.466,
+              "p99_ms": 1.1782400000000053,
+              "protocol": "DNS",
+              "rps": 42.93333333333333
+            }
+          ],
+          "error_ratio": 0.9149309995358925,
+          "evidence": null,
+          "p95_ms": 1.7838999999999996,
+          "p99_ms": 3.750260000000002,
+          "protocol_dist": {
+            "DNS": 0.9150446585021642,
+            "HTTP": 0.0006298601047556806,
+            "MySQL": 0.08432548139308006
+          },
+          "total_rps": 234.62
+        }
+      }
+    },
+    {
+      "name": "resolve_pod",
+      "arguments": {
+        "cluster": "rd2",
+        "namespace": "kylin-insights",
+        "pod": "iam-server-86cb7cd948-l24zd"
+      },
+      "output": {
+        "ambiguous": false,
+        "meta": {
+          "data_freshness": "unknown",
+          "data_gaps": null,
+          "query_time": "2026-10-09T11:25:48+08:00",
+          "time_range": {
+            "end_time": "2026-10-09T11:25:48+08:00",
+            "start_time": "2026-10-09T11:10:48+08:00"
+          },
+          "truncated": false
+        },
+        "pods": [
+          {
+            "cluster": "rd2",
+            "containers": [
+              {
+                "container_id": "ccb362f01b29081f4bf50705374db76ff2a8cb3fe9c327ccaf76b4cdc2a81d4a",
+                "image": "",
+                "name": ""
+              }
+            ],
+            "created_at": "2026-09-24T10:11:05+08:00",
+            "ips": [
+              "10.244.34.202",
+              "fe80::8cc4:5aff:fe66:6dad"
+            ],
+            "labels": {
+              "app.kubernetes.io/name": "iam-server",
+              "pod-template-hash": "86cb7cd948"
+            },
+            "name": "iam-server-86cb7cd948-l24zd",
+            "namespace": "kylin-insights",
+            "node": "k8s-10-44-56-108",
+            "pod_uid": "1f13370a-5c50-4f28-959f-83fa4f1a9a62",
+            "services": [
+              {
+                "cluster_ip": "10.103.210.141",
+                "name": "iam-server",
+                "selector": "{\"app.kubernetes.io/name\":\"iam-server\"}",
+                "uid": "1777fee9-e2c1-4ad4-9ca5-cc7648ae8e3c"
+              }
+            ],
+            "workload": {
+              "kind": "Deployment",
+              "name": "iam-server",
+              "uid": "661c4fb4-eec5-4efb-8623-35c958bd6a54"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "get_pod_network_summary",
+      "arguments": {
+        "pod_uid": "1f13370a-5c50-4f28-959f-83fa4f1a9a62",
+        "cluster": "rd2",
+        "direction": "both",
+        "top_n": 20
+      },
+      "output": {
+        "meta": {
+          "data_freshness": "unknown",
+          "data_gaps": null,
+          "query_time": "2026-10-09T11:25:48+08:00",
+          "time_range": {
+            "end_time": "2026-10-09T11:25:48+08:00",
+            "start_time": "2026-10-09T11:10:48+08:00"
+          },
+          "truncated": false
+        },
+        "summary": {
+          "anomalies": null,
+          "downstreams": [
+            {
+              "name": "mysql-f9db5ccd9-4d7pb",
+              "role": "server"
+            },
+            {
+              "name": "coredns-6ffd7956b8-jz7hx",
+              "role": "server"
+            },
+            {
+              "name": "coredns-6ffd7956b8-hqvsk",
+              "role": "server"
+            }
+          ],
+          "establish_fail_ratio": 0,
+          "evidence": null,
+          "retrans_ratio": 0,
+          "rst_count": 0,
+          "rtt_avg_ms": 0.018696551724137932,
+          "upstreams": null,
+          "zero_window_count": 0
+        }
+      }
+    }
+  ],
+  "service_queries": [
+    {
+      "name": "search_k8s_targets",
+      "arguments": {
+        "query": "iam-server",
+        "kind": "auto",
+        "limit": 10,
+        "cluster": "rd2",
+        "namespace": "kylin-insights"
+      },
+      "output": {
+        "candidates": [
+          {
+            "cluster": "rd2",
+            "cluster_ip": "10.103.210.141",
+            "id": 5,
+            "kind": "service",
+            "match": "exact",
+            "match_field": "name",
+            "name": "iam-server",
+            "namespace": "kylin-insights",
+            "type": "NodePort",
+            "uid": "1777fee9-e2c1-4ad4-9ca5-cc7648ae8e3c"
+          }
+        ],
+        "candidates_by_kind": {
+          "service": 1
+        },
+        "cluster_filter": "rd2",
+        "data_source": "server_inventory",
+        "freshness": "unknown",
+        "kind": "auto",
+        "namespace_filter": "kylin-insights",
+        "query": "iam-server",
+        "scanned": {
+          "clusters": 2,
+          "namespaces": 5,
+          "pods": 0,
+          "services": 1
+        },
+        "status": "ok",
+        "truncated": false,
+        "warnings": []
+      }
+    },
+    {
+      "name": "get_service_backends",
+      "arguments": {
+        "pod_scan_limit": 500,
+        "service_uid": "1777fee9-e2c1-4ad4-9ca5-cc7648ae8e3c",
+        "service_name": "iam-server",
+        "cluster": "rd2",
+        "namespace": "kylin-insights"
+      },
+      "output": {
+        "data_source": "server_inventory",
+        "freshness": "unknown",
+        "matching_basis": "inventory_selector",
+        "matching_note": "候选 Pod 来自 Controller/MySQL 资源清单的 selector 匹配，不等于 kube-apiserver 实时 EndpointSlice 的 Ready 后端，也不代表这些 Pod 正在接流量",
+        "notice": "无法按 selector 映射 Pod",
+        "pods": [],
+        "ports": [
+          {
+            "name": "http",
+            "node_port": 30800,
+            "port": 8000,
+            "protocol": "TCP",
+            "target_port": 8000
+          },
+          {
+            "name": "websocket",
+            "node_port": 31441,
+            "port": 8001,
+            "protocol": "TCP",
+            "target_port": 8001
+          },
+          {
+            "name": "metrics",
+            "node_port": 32355,
+            "port": 9091,
+            "protocol": "TCP",
+            "target_port": 9091
+          },
+          {
+            "name": "grpc",
+            "node_port": 31115,
+            "port": 9000,
+            "protocol": "TCP",
+            "target_port": 9000
+          },
+          {
+            "name": "gateway-auth",
+            "node_port": 30174,
+            "port": 8002,
+            "protocol": "TCP",
+            "target_port": 8002
+          }
+        ],
+        "ready_status": "unknown",
+        "service": {
+          "cluster": "rd2",
+          "cluster_ip": "10.103.210.141",
+          "id": 5,
+          "name": "iam-server",
+          "namespace": "kylin-insights",
+          "selector": {},
+          "selector_raw": "app.kubernetes.io/name:iam-server",
+          "type": "NodePort",
+          "uid": "1777fee9-e2c1-4ad4-9ca5-cc7648ae8e3c"
+        },
+        "status": "ok",
+        "truncated": false,
+        "warnings": [
+          "Service selector 不是合法 JSON，无法按 selector 映射 Pod: 解析 JSON 失败: invalid character 'a' looking for beginning of value",
+          "该 Service（type=NodePort）没有 selector，无法按 selector 映射 Pod；这不等于 Service 没有后端，也不代表服务已宕机"
+        ]
+      }
+    },
+    {
+      "name": "query_metrics",
+      "arguments": {
+        "metric_key": "error_rate",
+        "target_kind": "service",
+        "target_name": "iam-server",
+        "cluster": "rd2",
+        "namespace": "kylin-insights",
+        "start_time": "2026-10-09T11:11:51+08:00",
+        "end_time": "2026-10-09T11:26:51+08:00"
+      },
+      "output": {
+        "data_source": "querier_prom",
+        "freshness": "unknown",
+        "generated_query": "sum(rate(kylin_insights_l7_error_total{namespace=\"kylin-insights\",service=\"iam-server\"}[60s])) / clamp_min(sum(rate(kylin_insights_l7_request_total{namespace=\"kylin-insights\",service=\"iam-server\"}[60s])), 1e-9)",
+        "metric_key": "error_rate",
+        "notice": "所选窗口与过滤条件下没有查到该指标的数据；空结果只表示没有观测数据，**不代表服务健康**",
+        "point_count": 0,
+        "query_range_mode": "range",
+        "series": [],
+        "series_count": 0,
+        "status": "not_found",
+        "truncated": false,
+        "unit": "ratio",
+        "warnings": [],
+        "window": {
+          "end": "2026-10-09T11:26:51+08:00",
+          "start": "2026-10-09T11:11:51+08:00",
+          "step": "60s"
+        }
+      }
+    },
+    {
+      "name": "search_traces",
+      "arguments": {
+        "service_name": "iam-server",
+        "limit": 20,
+        "cluster": "rd2",
+        "namespace": "kylin-insights",
+        "start_time": "2026-10-09T11:11:51+08:00",
+        "end_time": "2026-10-09T11:26:51+08:00"
+      },
+      "output": {
+        "data_source": "querier_tempo",
+        "freshness": "unknown",
+        "notice": "所选时间与过滤条件下没有查到 Trace；空结果只表示没查到链路数据，**不表示服务没有故障**",
+        "service_tag": "resource.service.name",
+        "status": "ok",
+        "tags_applied": [
+          "resource.service.name=\"iam-server\""
+        ],
+        "trace_count": 0,
+        "traces": [],
+        "truncated": false,
+        "warnings": [],
+        "window": {
+          "end": "2026-10-09T11:26:51+08:00",
+          "start": "2026-10-09T11:11:51+08:00",
+          "step": ""
+        }
+      }
+    }
+  ]
+}

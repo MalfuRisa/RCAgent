@@ -1,0 +1,3 @@
+# 自有调查循环示例
+
+摘要记有关键值与source_id：用read_material精读相应JSON Pointer，数组按next_offset翻页，长字段按字符片段继续。旧错误无需等待同工具返回accepted；新合法证据可继续使用。
