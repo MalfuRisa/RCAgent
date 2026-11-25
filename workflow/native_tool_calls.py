@@ -95,7 +95,7 @@ def prepare(call, runner):
     return hint
 
 
-async def execute_batch(calls, runner, role=None):
+async def execute_batch(calls, runner, role=None, read_budget=None):
     role = role or runner.role
     calls = [dict(call) for call in calls]
     messages, settled, errors, hints = [None] * len(calls), [None] * len(calls), {}, {}
@@ -160,11 +160,21 @@ async def execute_batch(calls, runner, role=None):
                     call_id=call["id"],
                 )
                 if name in runner.local_handlers:
+                    local_args = args
+                    if name == "read_material" and read_budget is not None:
+                        local_args = dict(args)
+                        requested = int(local_args.get("max_chars", 16000) or 16000)
+                        local_args["max_chars"] = max(
+                            256, min(requested, read_budget.remaining())
+                        )
+                    visible = runner.local_handlers[name](**local_args)
+                    if read_budget is not None:
+                        visible = read_budget.apply(
+                            call["id"], name, local_args, visible
+                        )
                     outcome.update(
                         status="ok",
-                        raw_result={
-                            "structuredContent": runner.local_handlers[name](**args)
-                        },
+                        raw_result={"structuredContent": visible},
                     )
                 else:
                     remote = await runner.owner.native.call(

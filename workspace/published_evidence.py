@@ -2,7 +2,7 @@
 
 from datetime import datetime, timedelta, timezone
 
-from .history_evidence import history_candidates
+from .history_evidence import history_candidates, result_series
 from .native_materials import pointer_value
 
 ZONE = timezone(timedelta(hours=8))
@@ -55,6 +55,22 @@ def checked_history(outputs):
     return {**evidence, 'groups':groups, 'groups_failed_source_check':len(evidence['groups'])-len(groups)}
 
 
+def checked_series(outputs, group, path):
+    source_id = path['source_id']
+    source = outputs.sources[source_id]
+    raw = outputs.materials.raw[source_id]
+    data = (raw.get('structuredContent') or {}).get('data') or {}
+    for key, series in result_series(source, data):
+        if key[-3:] == (group['metric'], group['unit'], group['expression']) and series.path == tuple(path['path']):
+            return series
+    return None
+
+
+def path_text(path):
+    client, server = path
+    return f'{client} → {server}' if client is not None else f'{server}（全部客户端入站汇总）'
+
+
 def clock(seconds, format='%H:%M:%S'):
     return datetime.fromtimestamp(seconds,ZONE).strftime(format)
 
@@ -64,7 +80,7 @@ def format_change(change, unit):
     points = [change.get(key) for key in ('before','current','after')]
     values = ' → '.join(str(p['value']) if p and p['value'] is not None else '未知' for p in points)
     refs = '、'.join(f'\x60{p["pointer"]}\x60' for p in points if p and p.get('pointer'))
-    return f'{path["client"]} → {path["server"]} 为 {values} {unit}，来源 {change["source_id"]} 的 {refs}'
+    return f'{path_text((path["client"], path["server"]))} 为 {values} {unit}，来源 {change["source_id"]} 的 {refs}'
 
 
 def evidence_text(evidence, unresolved_references=()):
@@ -79,9 +95,10 @@ def evidence_text(evidence, unresolved_references=()):
         lines.append(f'- {group["dataset"]} 的 \x60{group["metric"]}\x60（{group["unit"]}），UTC+8 {start}–{end}，'
                      f'请求采样间隔 {group["sampling_seconds"]} 秒。至少两条路径同刻有值 **{finite}** 个时点，'
                      f'至少两条路径各有前后相邻点而可比较涨幅 **{comparable}** 个时点。')
-        coverage = '；'.join(f'{p["path"][0]} → {p["path"][1]} {p["finite_points"]} 个有限点（{p["source_id"]}）'
+        coverage = '；'.join(f'{path_text(p["path"])} {p["finite_points"]} 个有限点（{p["source_id"]}）'
                             for p in group['paths'][:6])
-        lines.append(f'  样本覆盖 {len(group["paths"])} 条返回路径，已列 {min(6,len(group["paths"]))} 条。{coverage}。')
+        name = '个服务汇总' if group.get('scope') == 'service' else '条返回路径'
+        lines.append(f'  样本覆盖 {len(group["paths"])} {name}，已列 {min(6,len(group["paths"]))} 个对象。{coverage}。')
         if comparable == 0:
             lines.append('  当前样本不足以判断多条路径是否同步变化。')
         if group['single_path_candidates']:

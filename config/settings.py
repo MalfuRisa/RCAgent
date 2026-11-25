@@ -10,21 +10,14 @@ from .chat_model import RCAChatOpenAI, validate_output_method
 # RCAgent uses a flat repository layout: config/ lives directly below the root.
 ROOT_DIR = Path(__file__).resolve().parent.parent
 root_dir = str(ROOT_DIR)
+load_dotenv(ROOT_DIR / ".env", verbose=True)
+
 INVESTIGATION_HISTORY_ROOT = Path(
-    os.environ.get(
-        "RCAGENT_INVESTIGATION_HISTORY_ROOT",
-        str(ROOT_DIR.parent / "RCAgent/学习材料归档/04-Agent学习/改动优化"),
-    )
+    os.environ.get("RCAGENT_INVESTIGATION_HISTORY_ROOT", ROOT_DIR / "var/investigation-history")
 )
 INVESTIGATION_HISTORY_MANIFEST = Path(
-    os.environ.get(
-        "RCAGENT_INVESTIGATION_HISTORY_MANIFEST",
-        str(ROOT_DIR / "local_testing/fixtures/investigation_history.json"),
-    )
+    os.environ.get("RCAGENT_INVESTIGATION_HISTORY_MANIFEST", INVESTIGATION_HISTORY_ROOT / "manifest.json")
 )
-
-# Load environment variables from .env file in the root directory
-load_dotenv(ROOT_DIR / ".env", verbose=True)
 
 # Owned investigation transport/capacity settings, independent of legacy budgets.
 INVESTIGATION_IDLE_TIMEOUT = float(os.getenv("RCAGENT_INVESTIGATION_IDLE_TIMEOUT", "300"))
@@ -35,13 +28,6 @@ NATIVE_MODEL_CONCURRENCY = int(os.getenv("RCAGENT_NATIVE_MODEL_CONCURRENCY", "1"
 NATIVE_TRACE_REQUESTS = os.getenv("RCAGENT_NATIVE_TRACE_REQUESTS", "false").lower() == "true"
 MODEL_CONTEXT_TOKENS = int(os.getenv("RCAGENT_MODEL_CONTEXT_TOKENS", "0")) or None
 MODEL_OUTPUT_RESERVE_TOKENS = int(os.getenv("RCAGENT_MODEL_OUTPUT_RESERVE_TOKENS", "0"))
-
-# Keep the upstream MCP compatibility path available for the unchanged
-# Triage/Planner implementation. The RCA worker uses the Kylin MCP Gateway.
-import sys
-
-mcp_server_path = str(ROOT_DIR / "MCP-server")
-sys.path.insert(0, mcp_server_path)
 
 # LLM Configuration
 #
@@ -185,6 +171,8 @@ INVESTIGATION_TIMEOUT_SECONDS = _positive_setting("INVESTIGATION_TIMEOUT_SECONDS
 CLOSEOUT_MIN_INVESTIGATION_MARGIN = _nonnegative_setting(
     "CLOSEOUT_MIN_INVESTIGATION_MARGIN", 10, float
 )
+INVESTIGATION_CONNECT_TIMEOUT = _positive_setting("INVESTIGATION_CONNECT_TIMEOUT", 30)
+PLANNER_READ_BUDGET_CHARS = _positive_setting("PLANNER_READ_BUDGET_CHARS", 8000)
 MODEL_TIMEOUT_SECONDS = _positive_setting("MODEL_TIMEOUT_SECONDS", 180)
 PLANNER_MODEL_TIMEOUT_SECONDS = _positive_setting("PLANNER_MODEL_TIMEOUT_SECONDS", 300)
 SUPERVISOR_MODEL_TIMEOUT_SECONDS = _positive_setting(
@@ -264,9 +252,6 @@ MAX_DAILY_OPENAI_TOKEN_LIMIT = int(
     os.environ.get("MAX_DAILY_OPENAI_TOKEN_LIMIT", 2_000_000)
 )
 
-AIOPSLAB_DIR = os.environ.get("AIOPSLAB_DIR")
-
-
 def apply_config_overrides(overrides: Mapping[str, Any]) -> None:
     """Update runtime knobs (called before launching each agent run)."""
     global MAX_TOOL_CALLS, RCA_TASKS_PER_ITERATION, TRACE_SERVICE_STARTING_POINT
@@ -291,102 +276,20 @@ def apply_config_overrides(overrides: Mapping[str, Any]) -> None:
     )
 
 
-# MCP configuration. RCAgent defaults to the locally developed Kylin Gateway
-# over Streamable HTTP. The legacy stdio mode remains available only for
-# reproducing the upstream baseline without changing Agent algorithms.
-MCP_MODE = os.environ.get("RCAGENT_MCP_MODE", "kylin_gateway").strip().lower()
-_MCP_SERVER_PATH = os.environ.get("RCAGENT_LEGACY_MCP_SERVER", "")
-_MCP_SERVER_DIR = str(Path(_MCP_SERVER_PATH).parent) if _MCP_SERVER_PATH else ""
-
-
+# HTTP configuration for the shared tool adapter.
 def get_mcp_config() -> dict:
-    """Build the selected MCP transport configuration.
+    gateway_url = os.environ.get("MCP_GATEWAY_URL", "http://127.0.0.1:8888/mcp").strip()
+    if not gateway_url:
+        raise ValueError("MCP_GATEWAY_URL must not be empty")
 
-    This function builds the MCP config dynamically, ensuring all relevant
-    environment variables are passed to the MCP server subprocess.
-    """
-    if MCP_MODE == "kylin_gateway":
-        gateway_url = os.environ.get(
-            "MCP_GATEWAY_URL", "http://127.0.0.1:8888/mcp"
-        ).strip()
-        if not gateway_url:
-            raise ValueError("MCP_GATEWAY_URL must not be empty in kylin_gateway mode")
-
-        gateway_config: dict[str, Any] = {
-            "url": gateway_url,
-            "transport": "streamable_http",
-        }
-        gateway_token = os.environ.get("MCP_GATEWAY_AUTH_TOKEN", "").strip()
-        if gateway_token:
-            gateway_config["headers"] = {"Authorization": f"Bearer {gateway_token}"}
-        return {"kylin_gateway": gateway_config}
-
-    if MCP_MODE != "legacy_stdio":
-        raise ValueError(
-            "RCAGENT_MCP_MODE must be either 'kylin_gateway' or 'legacy_stdio'"
-        )
-
-    # Legacy upstream compatibility: spawn the two stdio MCP servers.
-    if not _MCP_SERVER_PATH or not Path(_MCP_SERVER_PATH).is_file():
-        raise ValueError("legacy_stdio requires RCAGENT_LEGACY_MCP_SERVER pointing to an installed MCP server")
-
-    env_vars = {"ALLOW_ONLY_NON_DESTRUCTIVE_TOOLS": "true"}
-
-    # Add all observability-related environment variables
-    env_keys_to_pass = [
-        "TARGET_NAMESPACE",
-        "PROMETHEUS_SERVER_URL",
-        "JAEGER_URL",
-        "NEO4J_URI",
-        "NEO4J_USER",
-        "NEO4J_PASSWORD",
-        "TRACE_SERVICE_STARTING_POINT",
-    ]
-
-    for key in env_keys_to_pass:
-        value = os.environ.get(key)
-        if value is not None:
-            env_vars[key] = value
-
-    return {
-        "kubernetes": {
-            "command": "npx",
-            "args": ["mcp-server-kubernetes"],
-            "transport": "stdio",
-            "env": {"ALLOW_ONLY_NON_DESTRUCTIVE_TOOLS": "true"},
-        },
-        "cluster_api": {
-            "command": "poetry",
-            "args": ["run", "python", _MCP_SERVER_PATH],
-            "transport": "stdio",
-            "env": env_vars,
-        },
-    }
+    gateway: dict[str, Any] = {"url": gateway_url, "transport": "streamable_http"}
+    gateway_token = os.environ.get("MCP_GATEWAY_AUTH_TOKEN", "").strip()
+    if gateway_token:
+        gateway["headers"] = {"Authorization": f"Bearer {gateway_token}"}
+    return {"kylin_gateway": gateway}
 
 
-# Initial MCP config - will be updated when creating client
 MCP_CONFIG = get_mcp_config()
-
-# Tool Configuration
-K8S_TOOLS_ALLOWED = [
-    "kubectl_get",
-    "kubectl_describe",
-    "explain_resource",
-    "list_api_resources",
-    "ping",
-]
-
-CUSTOM_TOOLS_ALLOWED = [
-    "get_metrics",
-    "get_metrics_range",
-    "get_pods_from_service",
-    "get_cluster_pods_and_services",
-    "get_services_used_by",
-    "get_dependencies",
-    "get_logs",
-    "get_traces",
-    "get_trace",
-]
 
 KYLIN_TOOLS_ALLOWED = [
     "resolve_pod",
@@ -413,8 +316,4 @@ KYLIN_DISCOVERY_TOOLS_ALLOWED = [
 #: Everything RCAgent may call on the Kylin Gateway.
 KYLIN_ALL_TOOLS_ALLOWED = KYLIN_TOOLS_ALLOWED + KYLIN_DISCOVERY_TOOLS_ALLOWED
 
-TOOLS_ALLOWED = (
-    KYLIN_ALL_TOOLS_ALLOWED
-    if MCP_MODE == "kylin_gateway"
-    else K8S_TOOLS_ALLOWED + CUSTOM_TOOLS_ALLOWED
-)
+TOOLS_ALLOWED = KYLIN_ALL_TOOLS_ALLOWED

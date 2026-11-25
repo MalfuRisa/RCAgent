@@ -1,5 +1,6 @@
 """One role's model binding, append-only history, guidance and task ownership."""
 
+import time
 import uuid
 from contextlib import asynccontextmanager
 
@@ -58,6 +59,7 @@ class RoleRunner:
         )
         self.conversation.active_role = role
         self.last_public_text = ""
+        self.first_text_at = None
         self.context_provider = None
         self.conversation.messages.append(HumanMessage(role_text(role), additional_kwargs={'guidance':'role:'+role}))
         if execution and execution.spec.routing_family == 'business':
@@ -130,6 +132,7 @@ class RoleRunner:
     async def request(self, *, tools=True, messages=None, request_role=None):
         self.owner.check_active()
         self.last_public_text = ""
+        self.first_text_at = None
         if self.execution:
             self.execution.discovered_tools = self.owner.native.tools
         self.model_round_id = "round_" + uuid.uuid4().hex
@@ -163,6 +166,7 @@ class RoleRunner:
                 role,
                 settings.INVESTIGATION_IDLE_TIMEOUT,
                 on_partial=lambda text: setattr(self, "last_public_text", text),
+                on_first_text=lambda: setattr(self, "first_text_at", time.monotonic()),
                 budget=self.owner.budget,
                 phase="generation" if self.owner.closing else "investigation",
                 slot=lambda: self.model_slot(role),
@@ -215,8 +219,8 @@ class RoleRunner:
                 return await self.request(tools=tools)
             raise
 
-    def closeout_messages(self, instruction):
-        """Bounded synthesis view: original task plus program-organized evidence only."""
+    def closeout_messages(self, instruction, material=None, *, context=None):
+        """Bounded synthesis view: original task plus compact verified material."""
         messages = list(self.conversation.messages[:2])
         guidance = next(
             (
@@ -232,11 +236,20 @@ class RoleRunner:
         messages.append(
             HumanMessage(instruction, additional_kwargs={"role_task": self.role})
         )
-        if self.context_provider is not None:
+        if material is not None:
+            messages.append(
+                HumanMessage(
+                    material.render(),
+                    additional_kwargs={"closeout_material": True},
+                )
+            )
+        if context is None and material is None and self.context_provider is not None:
+            context = self.context_provider()
+        if context:
             messages.append(
                 HumanMessage(
                     "当前取证与待答项（程序整理，原文按来源读取）：\n"
-                    + self.context_provider(),
+                    + context,
                     additional_kwargs={"evidence_view": True},
                 )
             )

@@ -15,7 +15,8 @@ def get_investigation_model():
     from . import settings
     return ChatOpenAI(model=settings.LLM_MODEL, api_key=settings.LLM_API_KEY,
         base_url=settings.LLM_BASE_URL or None, max_retries=0,
-        timeout=httpx.Timeout(settings.INVESTIGATION_IDLE_TIMEOUT, connect=10),
+        timeout=httpx.Timeout(settings.INVESTIGATION_IDLE_TIMEOUT,
+                              connect=settings.INVESTIGATION_CONNECT_TIMEOUT),
         stream_usage=True)
 
 

@@ -12,6 +12,11 @@ import httpx
 
 @asynccontextmanager
 async def gateway(output, *, budget=None):
+    querier = os.environ.get("RCAGENT_V5_QUERIES_HTTP_URL", "").strip()
+    controller = os.environ.get("RCAGENT_V5_CONTROLLER_HTTP_URL", "").strip()
+    if not querier or not controller:
+        raise ValueError("Set RCAGENT_V5_QUERIES_HTTP_URL and RCAGENT_V5_CONTROLLER_HTTP_URL to start the native gateway")
+
     output = Path(output)
     output.mkdir(parents=True, exist_ok=False)
     with socket.socket() as sock:
@@ -20,8 +25,8 @@ async def gateway(output, *, budget=None):
     token = secrets.token_urlsafe(32)
     env = dict(
         os.environ,
-        QUERIES_HTTP_BASE_URL=os.environ.get("RCAGENT_V5_QUERIES_HTTP_URL", "http://10.44.56.107:30634"),
-        SERVER_HTTP_BASE_URL=os.environ.get("RCAGENT_V5_CONTROLLER_HTTP_URL", "http://10.44.56.107:30417"),
+        QUERIES_HTTP_BASE_URL=querier,
+        SERVER_HTTP_BASE_URL=controller,
         MCP_GATEWAY_ADDR=f"127.0.0.1:{port}",
         MCP_TOOLSET="observe",
         GATEWAY_AUTH_TOKEN=token,

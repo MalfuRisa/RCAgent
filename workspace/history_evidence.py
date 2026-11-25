@@ -8,19 +8,33 @@ from math import isfinite
 @dataclass
 class Series:
     source_id: str
-    path: tuple[str, str]
+    path: tuple[str | None, str]
     points: dict
     coverage: dict
 
 
-def path_of(meta):
+def endpoint_filters(filters):
     endpoints = {}
-    for target in (meta.get('requested') or {}).get('filters') or []:
+    for target in filters or []:
         key, values = target.get('field'), target.get('values')
-        if key in {'auto_service_0', 'auto_service_1'} and target.get('op') == 'eq' and len(values or []) == 1:
-            endpoints[key] = values[0]
+        if (key not in {'auto_service_0', 'auto_service_1'} or key in endpoints
+                or target.get('op') != 'eq' or len(values or []) != 1
+                or not isinstance(values[0], str) or not values[0]):
+            return None
+        endpoints[key] = values[0]
+    return endpoints
+
+
+def path_of(meta):
+    requested = (meta.get('requested') or {}).get('filters')
+    endpoints = endpoint_filters(requested)
+    if endpoints is None:
+        return None
+    applied = (meta.get('constructed') or {}).get('appliedFilters')
+    if applied is not None and endpoint_filters(applied) != endpoints:
+        return None
     client, server = endpoints.get('auto_service_0'), endpoints.get('auto_service_1')
-    return (client, server) if isinstance(client, str) and isinstance(server, str) else None
+    return (client, server) if server and (client or applied is not None) else None
 
 
 def scope_of(source, data):
@@ -43,7 +57,7 @@ def scope_of(source, data):
     route = (source.get('mcp_source'), context.get('mcp_url'), context.get('configured_backend'),
              name.get('name'), name.get('version'))
     if (not any(route[1:3]) or not table.get('database') or not table.get('table') or
-            type(interval) is not int or interval <= 0 or 'toi' not in (request.get('groupBy') or [])):
+            type(interval) is not int or interval <= 0 or request.get('groupBy') != ['toi']):
         return None
     key = (route, start, end, dataset, table['database'], table['table'], request.get('dataSource'), interval)
     return key, path, meta
@@ -78,27 +92,65 @@ def result_series(source, data):
     for idx, chart in enumerate(data.get('charts') or []):
         metric, unit = chart.get('metricKey'), chart.get('unit')
         chart_series = chart.get('series') or []
-        if not metric or not isinstance(unit, str) or len(chart_series) != 1:
+        if not metric or not unit or not isinstance(unit, str) or len(chart_series) != 1:
             continue
         expression = (semantics.get(metric) or {}).get('expression')
         pointer = f'/structuredContent/data/charts/{idx}/series/0/points'
         points = observed_points(chart_series[0].get('points') or [], pointer, key[1], key[2])
-        results.append(((*key, metric, unit, expression), Series(source['source_id'], path, points, meta.get('coverage'))))
+        mode = 'service' if path[0] is None else 'path'
+        results.append(((*key, mode, metric, unit, expression), Series(source['source_id'], path, points, meta.get('coverage'))))
     return results
 
 
-def change(series, timestamp, step):
+def adjacent_points(series, timestamp, step):
     previous, current, following = (series.points.get(t) for t in (timestamp-step, timestamp, timestamp+step))
-    if not previous or not current or previous['value'] is None or current['value'] is None:
-        return None
-    return {'path': {'client': series.path[0], 'server': series.path[1]}, 'source_id': series.source_id,
+    return {'timestamp_ms': timestamp,
+            'path': {'client': series.path[0], 'server': series.path[1]}, 'source_id': series.source_id,
             'same_named_endpoints': series.path[0] == series.path[1],
-            'before': previous, 'current': current, 'after': following,
-            'delta': current['value'] - previous['value']}
+            'before': previous, 'current': current, 'after': following}
+
+
+def point_value(point):
+    return (point or {}).get('value')
+
+
+def change(series, timestamp, step):
+    sample = adjacent_points(series, timestamp, step)
+    before, current = (point_value(sample[name]) for name in ('before', 'current'))
+    return None if before is None or current is None else {**sample, 'delta': current - before}
+
+
+def window_peak(series, step):
+    finite = [(t, p['value']) for t, p in series.points.items() if p['value'] is not None]
+    if not finite:
+        return None
+    timestamp, _ = max(finite, key=lambda point: (point[1], -point[0]))
+    return adjacent_points(series, timestamp, step)
+
+
+def path_summary(series):
+    ordered = [
+        series.points[timestamp]['value']
+        for timestamp in sorted(series.points)
+        if series.points[timestamp]['value'] is not None
+    ]
+    if not ordered:
+        return {
+            'finite_points': 0, 'first': None, 'last': None,
+            'avg': None, 'min': None, 'max': None,
+        }
+    return {
+        'finite_points': len(ordered),
+        'first': ordered[0],
+        'last': ordered[-1],
+        'avg': round(sum(ordered) / len(ordered), 3),
+        'min': min(ordered),
+        'max': max(ordered),
+    }
 
 
 def align_group(key, paths):
-    route, start, end, dataset, database, table, data_source, seconds, metric, unit, expression = key
+    route, start, end, dataset, database, table, data_source, seconds, scope, metric, unit, expression = key
     timestamps = sorted({t for series in paths for t in series.points})
     step = seconds*1000
     singles, simultaneous = [], []
@@ -120,9 +172,9 @@ def align_group(key, paths):
     return {'source_family': route[0], 'server_name': route[3], 'server_version': route[4],
             'dataset': dataset, 'table': {'database': database, 'name': table},
             'window': {'start': start, 'end': end}, 'sampling_seconds': seconds, 'data_source': data_source,
-            'metric': metric, 'unit': unit, 'expression': expression,
+            'scope': scope, 'metric': metric, 'unit': unit, 'expression': expression,
             'paths': [{'path': series.path, 'source_id': series.source_id, 'coverage': series.coverage,
-                       'finite_points': sum(point['value'] is not None for point in series.points.values())}
+                       **path_summary(series)}
                       for series in paths],
             'observed_timestamps': len(timestamps), 'timestamps_with_values_on_two_or_more_paths': same_time_values,
             'timestamps_with_adjacent_deltas_on_two_or_more_paths': comparable,

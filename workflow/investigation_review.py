@@ -58,6 +58,8 @@ async def review_draft(session, mode="program"):
 
 
 def assemble_partials(outputs):
+    if outputs.verified_partial:
+        return
     parts = [
         f"## 阶段 {r['task_id']}（{r['status']} / {r['end_reason']}）\n{r['answer_text']}"
         for r in outputs.task_results

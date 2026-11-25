@@ -17,8 +17,6 @@ process.stdin.on("data",s=>input+=s); process.stdin.on("end",()=>{
 def concept_hint(question, budget=None):
     path = Path(os.getenv('RCAGENT_CONCEPTS_PATH', str(Path(__file__).resolve().parents[1] / 'skills/kylin-insights-observability/references/concepts.json')))
     node = os.getenv('RCAGENT_CONCEPT_NODE') or shutil.which('node')
-    cached = Path('/root/.cache/rcagent-node/package/bin/node')
-    node = node or (str(cached) if cached.is_file() else None)
     try:
         data = json.loads(path.read_text(encoding='utf-8-sig'))
         if not node:

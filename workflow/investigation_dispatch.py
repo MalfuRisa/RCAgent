@@ -31,8 +31,11 @@ from platforms.insights_v5.native_task_scope import TaskExecution
 from workflow.direct_query import DIRECT_TOOL, DirectQuery, direct_definition
 from workflow.native_tool_calls import calls_from, execute_batch, valid_ids, wire_message
 from workspace.catalog_preparation import catalog_cards
-from workspace.investigation_projection import decision_materials
+from workspace.closeout_material import build as build_closeout_material
+from workspace.evidence_readiness import evaluate as evaluate_readiness
+from workspace.investigation_projection import decision_materials, synthesis_context
 from workspace.native_tasks import save_task
+from workspace.read_budget import ReadBudget
 from workspace.stage_handoff import source_cards, stage_handoff
 from context.concept_hints import concept_hint
 
@@ -43,7 +46,8 @@ SOURCE_NAMES = {'business', 'native'}
 CLOSEOUT_INSTRUCTION = (
     "停止取证并直接回答原题。只输出一段中文正文：第一句直接回答；"
     "随后给支撑结论的时间、关键数值和单位；最后说明会影响结论的覆盖缺口。"
-    "不要分节、不要罗列工具或来源，不要编造。详细原文按 source_id 回查。"
+    "开放题交代影响范围、原因的证据边界和仍未完成的事项。"
+    "不要分节、不要罗列工具，不要编造。引关键事实的 source_id。"
 )
 
 
@@ -110,8 +114,12 @@ class Dispatcher:
         self.any_settled = False
         self.corrections = 0
         self.last_rejections = None
-        self.closeout_requested = False
+        self.closeout_requested = None
         self.closeout_started = False
+        self.readiness_version = None
+        self.readiness = None
+        self.progress_sent = False
+        self.outputs.on_business_result = self.show_verified_progress
         self.direct_available = (
             session.native.profile in {"business", "integrated"}
             and "insights_query_metrics" in session.native.tools
@@ -164,7 +172,7 @@ class Dispatcher:
                 "先直接调用它；不要先派 Worker 或查目录。程序填写已确认的绝对窗和客户端(auto_service_0)过滤，零Worker；"
                 "对象必须逐字来自原题。app-path 常用指标：server_response_time、percentile95、percentile99、request_rate。"
                 "需要消歧、分步选择查询、跨来源或证据性质需研判时仍用派工。"
-                "对照路径补查是可选增益：只有原题需要同期比较、现有同口径样本不足、已给出有价值候选且剩余预算够补查和成稿时才做；补查不保证形成同步性结论。"
+                "原题点名的每一条路径都需要对应证据。开放题根据已返范围找出可能改变结论的对照对象，再做定向查询。"
             )
         self.planner.instruction(
             "证据够用或调查余量不足时，可调用 close_investigation 主动结束取证；"
@@ -182,8 +190,9 @@ class Dispatcher:
             "纯取数子问题用first_result，并把影响判断的指标放在同一批：同一路径的延迟、P95/P99和请求率可一次取回；"
             "程序facts交回后不再写小结。需要根据中间结果选择查询、消歧、跨来源或业务研判时才用answer。"
             "first_result在首批目标调用结算后交回，包括失败；不要要求当前阶段在首次失败后继续换写法。"
-            "收到阶段结果后决定继续、独立问题并行或交付。"
-            "需要改变结论的缺口才派工。最终默认一段：第一句回答原题，随后关键时间、原值/单位和影响结论的缺口；"
+            "收到同一批成功和失败回执后决定继续、独立问题并行或交付。"
+            "开放题每次续查用 question 和 decision_impact 说明要核对哪个未解释的异常，或要区分哪两种解释。"
+            "已知问项缺来源时补查对应对象、方向、指标和窗口。最终默认一段：第一句回答原题，随后关键时间、原值/单位和影响结论的缺口；"
             "过程留归档，不罗列每个工具和所有source。不要编造健康结论，无需报告包。"
         )
 
@@ -196,6 +205,62 @@ class Dispatcher:
 
     def version(self):
         return len(self.outputs.sources), len(self.outputs.task_results)
+
+    def elapsed_seconds(self):
+        budget = self.session.budget
+        return budget.clock() - budget.started if budget else None
+
+    def current_readiness(self):
+        version = (len(self.outputs.sources), self.window)
+        if version != self.readiness_version:
+            self.readiness = evaluate_readiness(self.outputs, self.question, self.window)
+            self.readiness_version = version
+        return self.readiness
+
+    def show_verified_progress(self):
+        if self.progress_sent:
+            return
+        readiness = self.current_readiness()
+        material = build_closeout_material(self.outputs, self.question, self.window, readiness)
+        if material is None or not material.facts:
+            return
+        self.progress_sent = True
+        self.outputs.first_verified_progress_at = self.elapsed_seconds()
+        fact = material.facts[0]
+        progress = {
+            "event": "verified_finding",
+            "text": fact.text,
+            "source_ids": fact.source_ids,
+            "next_checks": readiness.gaps if readiness.kind != "unhandled" else ["仍在核对影响范围、其他异常及原因依据"],
+            "elapsed_seconds": self.outputs.first_verified_progress_at,
+        }
+        self.outputs.event("verified_finding", "system", progress)
+        self.session.progress(progress)
+
+    def continue_for(self, readiness):
+        budget = self.session.budget
+        has_room = budget is None or budget.remaining("investigation") >= settings.CLOSEOUT_MIN_INVESTIGATION_MARGIN
+        return bool(readiness.pending and readiness.tool in self.session.native.tools and has_room)
+
+    def report_readiness(self, readiness):
+        if readiness.kind == "unhandled":
+            return
+        details = readiness.to_dict()
+        self.outputs.evidence_readiness = details
+        self.outputs.event("evidence_readiness", "system", details)
+        if readiness.ready and self.outputs.last_required_evidence_at is None:
+            received = self.outputs.business_received_at
+            self.outputs.last_required_evidence_at = max(
+                (received[sid] for sid in readiness.source_ids if sid in received),
+                default=self.elapsed_seconds(),
+            )
+            self.outputs.event("required_evidence_received", "system", {
+                "source_ids": readiness.source_ids, "elapsed_seconds": self.outputs.last_required_evidence_at,
+            })
+
+    def remind_missing(self, readiness):
+        self.planner.instruction("原题仍需核对以下问项。请按已结算的成功、失败回执定向补查："
+                                 + "；".join(readiness.pending))
 
     def window_kind(self, spec):
         window, main = spec.window, self.window
@@ -610,6 +675,7 @@ class Dispatcher:
         """Pair every call in wire order; evidence and closeout keep their own rules."""
         accepted, rejected, dispatched = [], [], False
         handled = False
+        read_budget = ReadBudget(settings.PLANNER_READ_BUDGET_CHARS)
         names = [call.get("name") for call in calls]
         evidence_names = set(self.entries) | {LEGACY_DISPATCH, DIRECT_TOOL, "read_material"}
         has_evidence = any(name in evidence_names for name in names)
@@ -636,15 +702,7 @@ class Dispatcher:
                     )
                 else:
                     closeout_seen = True
-                    self.closeout_requested = True
-                    self._pair(
-                        call,
-                        {
-                            "call": CLOSEOUT_TOOL,
-                            "status": "accepted",
-                            "detail": "Closeout accepted; no further tools will run.",
-                        },
-                    )
+                    self.settle_closeout_call(call)
                 continue
             if name == DIRECT_TOOL:
                 dispatched = True
@@ -673,7 +731,9 @@ class Dispatcher:
             is_dispatch = name in self.entries or name == LEGACY_DISPATCH
             if not is_dispatch:
                 if not dispatched:
-                    await execute_batch([call], self.planner)
+                    await execute_batch(
+                        [call], self.planner, read_budget=read_budget
+                    )
                 else:
                     self._pair(
                         call,
@@ -689,7 +749,31 @@ class Dispatcher:
             rejected.extend(batch_rejected)
         if accepted:
             await self.run_batch(accepted)
+        if read_budget.calls:
+            card = read_budget.card()
+            self.outputs.read_calls += card["calls"]
+            self.outputs.read_chars += card["used"]
+            self.outputs.read_truncated += card["truncated"]
+            self.outputs.read_batches.append(card)
+            self.outputs.event("read_batch", "planner", card)
         return dispatched, bool(accepted) or handled, rejected
+
+    def settle_closeout_call(self, call):
+        readiness = self.current_readiness()
+        args = call.get("args") or {}
+        reason = args.get("reason") if isinstance(args, dict) else None
+        reason = reason.strip() if isinstance(reason, str) else ""
+        receipt = {"call": CLOSEOUT_TOOL, "reason": reason, "remaining_gaps": readiness.gaps}
+        if self.continue_for(readiness):
+            rejection = DispatchRejection(
+                "evidence_incomplete", "原题的必答项仍缺可查询证据",
+                fix="补查：" + "；".join(readiness.pending),
+            )
+            receipt.update(status="rejected", rejected=[rejection_item(0, rejection)])
+        else:
+            self.closeout_requested = reason or "Planner 主动结束取证"
+            receipt.update(status="accepted", detail="Closeout accepted; no further tools will run.")
+        self._pair(call, receipt)
 
     def should_closeout_after_batch(self):
         """Once evidence exists and one more investigation round cannot finish, close out."""
@@ -704,49 +788,128 @@ class Dispatcher:
             < settings.CLOSEOUT_MIN_INVESTIGATION_MARGIN
         )
 
-    async def closeout(self, reason, *, trigger):
+    async def closeout(self, reason, *, trigger, readiness=None):
         """The single dedicated generation round; normal answer, deadline and fallback share it."""
         if self.closeout_started:
             return
         self.closeout_started = True
         self.session.closing = True
         budget = self.session.budget
+        readiness = readiness or self.current_readiness()
+        self.report_readiness(readiness)
+        material = build_closeout_material(self.outputs, self.question, self.window, readiness)
+        if material is not None:
+            self.outputs.closeout_material = material.to_dict()
+            rendered = material.render()
+            self.outputs.save("closeout-material.md", rendered)
+            self.outputs.save("closeout-material.json", material.to_dict())
+            self.outputs.closeout_material_chars = len(rendered)
         self.outputs.closeout_rounds += 1
         self.outputs.closeout_trigger = trigger
+        instruction = f"现在停止取证（{reason}）。" + CLOSEOUT_INSTRUCTION
+        open_question = readiness.kind == "unhandled"
+        context = None
+        if open_question:
+            context = synthesis_context(self.outputs, self.window, material.numeric_source_ids if material else ())
+        messages = self.planner.closeout_messages(instruction, material=material, context=context)
+        prompt_chars = sum(len(str(message.content)) for message in messages)
+        self.outputs.closeout_prompt_chars = prompt_chars
         self.outputs.event(
             "closeout_started",
             "planner",
             {
                 "reason": str(reason),
                 "trigger": trigger,
-                "elapsed_seconds": budget.clock() - budget.started if budget else None,
+                "elapsed_seconds": self.elapsed_seconds(),
                 "investigation_remaining": budget.remaining("investigation") if budget else None,
                 "generation_remaining": budget.remaining("generation") if budget else None,
                 "min_investigation_margin": settings.CLOSEOUT_MIN_INVESTIGATION_MARGIN,
                 "sources": len(self.outputs.sources),
                 "tasks": len(self.outputs.task_results),
+                "material_chars": self.outputs.closeout_material_chars,
+                "prompt_chars": prompt_chars,
+                "last_evidence_seconds": self.outputs.last_evidence_at,
+                "last_required_evidence_seconds": self.outputs.last_required_evidence_at,
+                "read_calls": self.outputs.read_calls,
+                "read_chars": self.outputs.read_chars,
+                "readiness": readiness.to_dict(),
             },
         )
-        if trigger == "planner":
+        if trigger == "evidence":
+            self.outputs.record_stop("evidence_ready_closeout")
+            self.outputs.evidence_closeouts += 1
+        elif trigger == "planner":
             self.outputs.record_stop("planner_closeout")
         elif trigger == "program":
             self.outputs.record_stop("investigation_margin")
-        if budget:
-            budget.check("generation")
-        instruction = f"现在停止取证（{reason}）。" + CLOSEOUT_INSTRUCTION
-        text, status = await self.planner.one_text(
-            instruction, messages=self.planner.closeout_messages(instruction)
-        )
+        try:
+            if budget:
+                budget.check("generation")
+            text, status = await self.planner.one_text(instruction, messages=messages)
+        except (Exception, asyncio.CancelledError) as exc:
+            text = self.planner.last_public_text
+            if text:
+                self.outputs.save("closeout-partial.md", text)
+            failure = "成稿请求未完成，以上为程序核对后的已有结果。"
+            if isinstance(exc, PhaseExpired):
+                failure = "成稿或交付预算已用尽，以上为程序核对后的已有结果。"
+            elif isinstance(exc, TimeoutError) or "timed out" in str(exc).lower():
+                failure = "成稿请求超时，以上为程序核对后的已有结果。"
+            body = self.save_partial(material, failure)
+            self.finish_closeout("failed", trigger, text, body, error=str(exc) or type(exc).__name__)
+            raise
+        if text:
+            self.outputs.save("closeout-model.md", text)
+        if status != "completed":
+            if text:
+                self.outputs.save("closeout-partial.md", text)
+            body = self.save_partial(material, "成稿未返回完整正文，以上为程序核对后的已有结果。")
+        elif readiness.gaps:
+            body = self.save_partial(material, self.remaining_evidence_reason(readiness, reason))
+        else:
+            body = material.compose(text) if material and not open_question else text
+            if body:
+                self.outputs.save_draft(body, **self.planner.ids)
+        self.finish_closeout(status, trigger, text, body)
+
+    def save_partial(self, material, reason):
+        body = material.partial(reason) if material else ""
+        if body:
+            self.outputs.save_verified_partial(body)
+        return body
+
+    def remaining_evidence_reason(self, readiness, reason=None):
+        if not readiness.pending:
+            return "已返回的回执存在上述证据缺口，保留可核实部分。"
+        if readiness.tool not in self.session.native.tools:
+            return "本次未发现对应查询工具，保留可核实部分。"
+        if reason and self.continue_for(readiness):
+            return f"停止取证的原因是 {reason}。"
+        return "调查余量不足，未能补齐上述证据。"
+
+    def finish_closeout(self, status, trigger, text, body, error=None):
+        budget = self.session.budget
         self.outputs.closeout_status = status
+        self.outputs.closeout_model_chars = len(text or "")
+        self.outputs.closeout_completed_at = self.elapsed_seconds()
+        if self.planner.first_text_at is not None and budget is not None:
+            self.outputs.closeout_first_text_at = (
+                self.planner.first_text_at - budget.started
+            )
         self.outputs.event(
             "closeout_finished",
             "planner",
-            {"status": status, "chars": len(text or ""), "trigger": trigger},
+            {
+                "status": status,
+                "trigger": trigger,
+                "model_chars": len(text or ""),
+                "body_chars": len(body or ""),
+                "material_chars": self.outputs.closeout_material_chars,
+                "prompt_chars": self.outputs.closeout_prompt_chars,
+                "first_text_seconds": self.outputs.closeout_first_text_at,
+                "error": error,
+            },
         )
-        if status == "completed":
-            self.outputs.save_draft(text, **self.planner.ids)
-        elif text:
-            self.outputs.save("closeout-partial.md", text)
 
     async def draft(self, reason):
         self.planner.outputs.event(
@@ -755,7 +918,9 @@ class Dispatcher:
         await self.closeout(reason, trigger="fallback")
 
     def _block(self, rejected, reason):
-        if self.tasks:
+        if self.tasks or any(
+            source.get("status") == "ok" for source in self.outputs.sources.values()
+        ):
             return
         self.stats["blocked"] = True
         self.outputs.record_stop("dispatch_blocked")
@@ -821,14 +986,31 @@ class Dispatcher:
                     dispatched, accepted_any = True, False
                 else:
                     dispatched, accepted_any, rejected = await self.control(calls)
-                if self.closeout_requested:
-                    await self.closeout("Planner 主动结束取证", trigger="planner")
+                readiness = self.current_readiness()
+                if self.closeout_requested is not None:
+                    await self.closeout(
+                        self.closeout_requested,
+                        trigger="planner",
+                        readiness=readiness,
+                    )
+                    return
+                if readiness.ready:
+                    await self.closeout(
+                        readiness.reason,
+                        trigger="evidence",
+                        readiness=readiness,
+                    )
                     return
                 if self.should_closeout_after_batch():
                     await self.closeout(
-                        "调查余量不足，无法再发起一轮正常调查", trigger="program"
+                        "调查余量不足，无法再发起一轮正常调查",
+                        trigger="program",
+                        readiness=readiness,
                     )
                     return
+                self.report_readiness(readiness)
+                if self.continue_for(readiness):
+                    self.remind_missing(readiness)
                 if not dispatched:
                     # Local original reads are allowed before a dispatch and are not
                     # a failed dispatch attempt; the Planner decides the next move.
@@ -884,7 +1066,19 @@ class Dispatcher:
                 and finish not in {"length", "content_filter"}
             ):
                 self.planner.conversation.messages.append(response)
+                readiness = self.current_readiness()
+                if readiness.ready:
+                    await self.closeout(readiness.reason, trigger="evidence", readiness=readiness)
+                    return
+                if self.continue_for(readiness):
+                    self.outputs.event("premature_answer", "planner", {"remaining_gaps": readiness.pending})
+                    self.remind_missing(readiness)
+                    continue
+                if readiness.gaps:
+                    await self.closeout(self.remaining_evidence_reason(readiness), trigger="program", readiness=readiness)
+                    return
                 if self.tasks or self.outputs.sources:
+                    self.outputs.event("planner_text_delivered", "planner", {"reason": readiness.reason})
                     self.outputs.save_draft(text, **self.planner.ids)
                     return
                 self.outputs.save("initial-plan.md", text)

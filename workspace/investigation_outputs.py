@@ -54,6 +54,9 @@ class RunOutputs:
         self.task_results = []
         self.draft_producer = None
         self.partial_body = ""
+        self.verified_partial = False
+        self.on_business_result = None
+        self.business_received_at = {}
         self.instruction = ""
         self.stop_reason = None
         self.stop_reasons = []
@@ -66,6 +69,21 @@ class RunOutputs:
         self.closeout_rounds = 0
         self.closeout_status = None
         self.closeout_trigger = None
+        self.closeout_material = None
+        self.closeout_material_chars = 0
+        self.closeout_prompt_chars = 0
+        self.closeout_model_chars = 0
+        self.closeout_first_text_at = None
+        self.closeout_completed_at = None
+        self.read_calls = 0
+        self.read_chars = 0
+        self.read_truncated = 0
+        self.read_batches = []
+        self.evidence_readiness = None
+        self.last_evidence_at = None
+        self.last_required_evidence_at = None
+        self.first_verified_progress_at = None
+        self.evidence_closeouts = 0
 
     def record_stop(self, reason):
         if self.sealed:
@@ -243,7 +261,19 @@ class RunOutputs:
         if outcome.get("rcagent_hint"):
             view["rcagent_hint"] = outcome["rcagent_hint"]
         result = json.dumps(view, ensure_ascii=False)
+        if source["status"] == "ok" and source.get("business_value_count", 0) > 0:
+            budget = getattr(self, "budget", None)
+            received = budget.clock() - budget.started if budget else time.monotonic() - self.started
+            self.business_received_at[source_id] = received
+            self.last_evidence_at = received
+            if self.on_business_result is not None:
+                self.on_business_result()
         return result
+
+    def save_verified_partial(self, text):
+        self.partial_body = text
+        self.verified_partial = True
+        self.save("partial-answer.md", text)
 
     def save_draft(self, text, **ids):
         if self.sealed:
@@ -333,6 +363,20 @@ class RunOutputs:
             "closeout_rounds": getattr(self, "closeout_rounds", 0),
             "closeout_status": getattr(self, "closeout_status", None),
             "closeout_trigger": getattr(self, "closeout_trigger", None),
+            "closeout_material_chars": getattr(self, "closeout_material_chars", 0),
+            "closeout_prompt_chars": getattr(self, "closeout_prompt_chars", 0),
+            "closeout_model_chars": getattr(self, "closeout_model_chars", 0),
+            "closeout_first_text_seconds": getattr(self, "closeout_first_text_at", None),
+            "closeout_completed_seconds": getattr(self, "closeout_completed_at", None),
+            "evidence_closeouts": getattr(self, "evidence_closeouts", 0),
+            "last_evidence_seconds": getattr(self, "last_evidence_at", None),
+            "last_required_evidence_seconds": self.last_required_evidence_at,
+            "first_verified_progress_seconds": self.first_verified_progress_at,
+            "read_calls": getattr(self, "read_calls", 0),
+            "read_chars": getattr(self, "read_chars", 0),
+            "read_truncated": getattr(self, "read_truncated", 0),
+            "read_batches": len(getattr(self, "read_batches", [])),
+            "evidence_readiness": getattr(self, "evidence_readiness", None),
             "zero_worker": (not self.task_results) and direct_queries > 0,
         }
         body = body or "未取得完整模型正文；工具材料和执行错误已保留，调查尚未完成。"
@@ -352,6 +396,8 @@ class RunOutputs:
             "execution_status": status,
             "answer_source": "model"
             if review or worker
+            else "program_partial"
+            if self.verified_partial
             else "program_assembled_model_partials"
             if body
             else "program_partial",
@@ -431,6 +477,21 @@ class RunOutputs:
             + "，"
             + str(counts["closeout_trigger"])
             + "）"
+            + " · 回读 "
+            + str(counts["read_calls"])
+            + " 次/"
+            + str(counts["read_chars"])
+            + " 字符（截断 "
+            + str(counts["read_truncated"])
+            + "）"
+            + " · 成稿材料 "
+            + str(counts["closeout_material_chars"])
+            + "/"
+            + str(counts["closeout_prompt_chars"])
+            + " 字符"
+            + " · 证据收尾 "
+            + str(counts["evidence_closeouts"])
+            + " 次"
             + "\n"
             + "\n".join("- " + x for x in limitations)
             + "\n\n[来源索引](sources.json) · [证据摘要](evidence-summary.md)\n",

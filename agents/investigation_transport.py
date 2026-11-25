@@ -118,7 +118,15 @@ def retry_delay(exc, attempt):
     return 2**attempt
 
 
-async def consume_stream(model, messages, idle_timeout, on_first, state):
+def exception_types(exc):
+    types = []
+    while exc is not None and len(types) < 5:
+        types.append(type(exc).__name__)
+        exc = exc.__cause__
+    return types
+
+
+async def consume_stream(model, messages, idle_timeout, on_first, on_first_text, state):
     """Aggregate one transport attempt; the caller owns slot acquisition.
 
     ``state['combined']`` keeps the last received chunk visible to the
@@ -134,10 +142,14 @@ async def consume_stream(model, messages, idle_timeout, on_first, state):
             except StopAsyncIteration:
                 break
             if first:
+                state["first_chunk_received"] = True
                 on_first()
                 first = False
             combined = chunk if combined is None else combined + chunk
             state["combined"] = combined
+            if not state.get("first_text") and content_text(chunk.content).strip():
+                state["first_text"] = True
+                on_first_text()
     finally:
         close = getattr(iterator, "aclose", None)
         if close:
@@ -147,7 +159,7 @@ async def consume_stream(model, messages, idle_timeout, on_first, state):
 
 async def stream_response(
     model, messages, outputs, role, idle_timeout, on_partial=None, budget=None,
-    phase="investigation", slot=None,
+    phase="investigation", slot=None, on_first_text=None,
 ):
     for attempt in range(3):
         combined = None
@@ -168,16 +180,31 @@ async def stream_response(
                 },
             )
 
+        def first_text():
+            if on_first_text is not None:
+                on_first_text()
+            outputs.event(
+                "model_first_text",
+                role,
+                {
+                    "transport_attempt": attempt + 1,
+                    "meaning": "首个非空可展示正文片段",
+                },
+            )
+
+        async def send():
+            state["sent_at"] = time.monotonic()
+            outputs.event("model_send_started", role, {"transport_attempt": attempt + 1})
+            return await consume_stream(
+                model, messages, idle_timeout, first_chunk, first_text, state
+            )
+
         try:
             if slot is None:
-                combined = await consume_stream(
-                    model, messages, idle_timeout, first_chunk, state
-                )
+                combined = await send()
             else:
                 async with slot():
-                    combined = await consume_stream(
-                        model, messages, idle_timeout, first_chunk, state
-                    )
+                    combined = await send()
             if combined is None:
                 return None
             return message_chunk_to_message(combined)
@@ -211,6 +238,19 @@ async def stream_response(
                     "ReadTimeout",
                     "TimeoutError",
                 }
+            )
+            sent_at = state.get("sent_at")
+            outputs.event(
+                "model_transport_failed", role,
+                {
+                    "transport_attempt": attempt + 1,
+                    "phase": phase,
+                    "exception_types": exception_types(exc),
+                    "status_code": status,
+                    "send_seconds": time.monotonic() - sent_at if sent_at is not None else None,
+                    "first_chunk_received": state.get("first_chunk_received", False),
+                    "public_text_received": state.get("first_text", False),
+                },
             )
             if capacity_error(exc) or not transient or attempt == 2:
                 raise

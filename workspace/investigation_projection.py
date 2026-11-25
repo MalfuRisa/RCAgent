@@ -54,6 +54,54 @@ def decision_materials(outputs, main_window=None):
             'reading_contract':'任务结算不代表证据充分。按原题及待答条件判断。只有同口径且有相邻有效点才能比较涨幅。没有分钟P95证据时，窗口P95不能回答同刻P95变化。数值、缺失和范围以原文为准。'}
 
 
+def synthesis_context(outputs, main_window, verified_sources=()):
+    """Give open questions the recent decisions and evidence not in the verified facts."""
+    window = {'start': main_window.start, 'end': main_window.end} if main_window else None
+    relevant = RESOURCE_TOOLS | BUSINESS_TOOLS | DATA_READS
+    covered = set(verified_sources)
+    ids = [sid for sid in reversed(outputs.sources)
+           if outputs.sources[sid]['tool_name'] in relevant and sid not in covered]
+    cards = source_cards(outputs, ids[:8])
+    for card in cards:
+        for panel in card.get('panels', ()):
+            panel['rows'] = panel['rows'][:2]
+            panel['rows_shown'] = len(panel['rows'])
+    stages = [stage_handoff(outputs, result) for result in reversed(outputs.task_results[-8:])]
+    history = compact_history(outputs, window) or {}
+    history_groups = [synthesis_history(group, covered) for group in history.get('groups', ())]
+
+    context = {}
+    for name, items, limit in (('task_results', stages, 2000), ('evidence', cards, 2600),
+                               ('other_history', history_groups, 1200)):
+        selected, size = [], 0
+        for item in items:
+            length = len(json.dumps(item, ensure_ascii=False, separators=(',', ':')))
+            if size + length <= limit:
+                selected.append(item)
+                size += length
+        context[name] = selected
+        context[name + '_omitted'] = len(items) - len(selected)
+    visible = {card['source_id'] for card in context['evidence']}
+    context['archived_source_ids'] = [sid for sid in ids if sid not in visible][:12]
+    return json.dumps(context, ensure_ascii=False, separators=(',', ':'))
+
+
+def synthesis_history(group, covered):
+    item = {key: group[key] for key in (
+        'scope', 'metric', 'unit', 'window', 'timestamps_with_values_on_two_or_more_paths',
+        'timestamps_with_adjacent_deltas_on_two_or_more_paths', 'path_count',
+    )}
+    item['paths'] = [path for path in group['paths'] if path['source_id'] not in covered][:3]
+    if group['same_time_candidates']:
+        candidate = group['same_time_candidates'][0]
+        item['same_time_example'] = {
+            'timestamp_ms': candidate['timestamp_ms'],
+            'rising': [{key: change[key] for key in ('path', 'source_id', 'before', 'current')}
+                       for change in candidate['rising'][:2]],
+        }
+    return item
+
+
 def bounded(value, limit=1800):
     text = json.dumps(value, ensure_ascii=False, default=str)
     return value if len(text) <= limit else {"fragment": text[:limit], "truncated": True}

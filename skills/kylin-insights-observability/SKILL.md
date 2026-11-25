@@ -5,9 +5,7 @@ description: RCAgent business配置下复用KylinInsight业务工具与指标词
 
 # 业务可观测调查
 
-来源：D:/kylin/kylin-insights-frontend-mainv5/apps/insights-mcp/skill/SKILL.md。
-本批适配：业务原13项及只读paths，取消强制全链剧本，不提供CLI/写操作；RCA保存来源并统一成稿。
-参考材料直接复制该包构建生成的词典，不另编指标定义。
+按当前 MCP 工具目录核对数据集、指标和查询口径。业务工具只读取证，RCAgent 保存来源并统一成稿。
 
 按当前问题选择最小步骤。status/catalog用于准备，不是业务原值；已经明确用法可直接查询。
 名称+现象的问题可首先派一个insights_generate_dashboard小任务，scopePolicy必须require-target，render=true才取业务值。
